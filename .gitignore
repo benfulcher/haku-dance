@@ -1,0 +1,5 @@
+.DS_Store
+# the original photo has other children in it: never commit it
+*.jpeg
+*.jpg
+*.HEIC

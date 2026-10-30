@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ハクの ダンス">
+<meta name="theme-color" content="#1d0b3d">
+<title>ハクの ダンス</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #1d0b3d; overflow: hidden; overscroll-behavior: none;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    font-family: "Hiragino Maru Gothic ProN", "M PLUS Rounded 1c", system-ui, sans-serif; color: #fff; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; }
+  .ov { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); box-sizing: border-box; }
+  .hidden { display: none !important; }
+  #title { justify-content: space-between; pointer-events: none; }
+  #title > * { pointer-events: auto; }
+  h1 { margin: 6px 0 0; font-size: clamp(42px, 13vw, 72px); line-height: .95; text-align: center; letter-spacing: 1px;
+    background: linear-gradient(90deg, #ff5fa2, #ffb03b, #ffe14d, #5ee07a, #45b6ff, #a77bff, #ff5fa2);
+    background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shine 3s linear infinite; filter: drop-shadow(0 3px 0 #0006); }
+  @keyframes shine { to { background-position: -200% 0; } }
+  .song { margin: 6px 0 0; font-size: 18px; opacity: .9; text-align: center; }
+  .bottom { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .howto { background: #0007; border-radius: 14px; padding: 8px 14px; font-size: 15px; text-align: center; line-height: 1.35; }
+  .diffs { display: flex; gap: 8px; width: 100%; }
+  button { font: inherit; color: #fff; border: 0; border-radius: 16px; padding: 12px 6px; cursor: pointer;
+    box-shadow: 0 4px 0 #0006; touch-action: manipulation; }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #0006; }
+  .diffs button { flex: 1; font-size: 19px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .diffs button small { font-size: 12px; opacity: .9; }
+  .d0 { background: #3fbf6a; } .d1 { background: #ff5fa2; } .d2 { background: #7a5cff; }
+  .timing { font-size: 13px; background: #0008; border-radius: 12px; padding: 4px 10px; display: flex; align-items: center; gap: 8px; }
+  .timing button { padding: 4px 12px; border-radius: 10px; background: #fff3; font-size: 16px; }
+  .card { margin: auto; background: #1d0b3ddd; border: 3px solid #fff5; border-radius: 24px; padding: 18px 20px;
+    width: 100%; max-width: 360px; box-sizing: border-box; text-align: center; }
+  .grade { font-size: 84px; line-height: 1; font-weight: 900; }
+  .stars { font-size: 38px; letter-spacing: 4px; color: #ffd23f; min-height: 44px; }
+  .msg { font-size: 18px; margin: 6px 0 12px; }
+  table { margin: 0 auto 10px; border-collapse: collapse; font-size: 17px; }
+  td { padding: 2px 10px; } td:first-child { text-align: left; } td:last-child { text-align: right; font-weight: bold; }
+  .best { color: #ffd23f; min-height: 22px; margin-bottom: 10px; }
+  .row { display: flex; gap: 10px; } .row button { flex: 1; font-size: 18px; }
+  .go { background: #ff5fa2; } .alt { background: #fff3; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="title" class="ov">
+  <div>
+    <h1>ハクの<br>ダンス！</h1>
+    <p class="song">♪ にじいろホップ ♪</p>
+  </div>
+  <div class="bottom">
+    <div class="howto"><b style="color:#ff5fa2">♥</b> <b style="color:#45b6ff">★</b>
+      <b style="color:#5ee07a">♪</b> <b style="color:#ff8a3d">🥕</b> が まるに きたら タップ！<br>おとを だしてね 🔊</div>
+    <div class="diffs">
+      <button class="d0" data-d="0">かんたん<small id="best0"></small></button>
+      <button class="d1" data-d="1">ふつう<small id="best1"></small></button>
+      <button class="d2" data-d="2">むずかしい<small id="best2"></small></button>
+    </div>
+    <div class="timing">タイミング ちょうせい <button id="tMinus">−</button><span id="tVal">0 ms</span><button id="tPlus">+</button></div>
+  </div>
+</div>
+
+<div id="pause" class="ov hidden">
+  <div class="card">
+    <div class="grade" style="font-size:48px">ひとやすみ</div>
+    <p class="msg">いきを ととのえよう！</p>
+    <div class="row"><button class="go" id="resume">つづける</button><button class="alt" id="quit">メニュー</button></div>
+  </div>
+</div>
+
+<div id="result" class="ov hidden">
+  <div class="card">
+    <div class="grade" id="rGrade">A</div>
+    <div class="stars" id="rStars"></div>
+    <div class="msg" id="rMsg"></div>
+    <table>
+      <tr><td style="color:#ffd23f">パーフェクト</td><td id="rP"></td></tr>
+      <tr><td style="color:#5ee07a">グレート</td><td id="rG"></td></tr>
+      <tr><td style="color:#45b6ff">グッド</td><td id="rO"></td></tr>
+      <tr><td style="color:#ff6b6b">ミス</td><td id="rM"></td></tr>
+      <tr><td>さいだいコンボ</td><td id="rC"></td></tr>
+      <tr><td>スコア</td><td id="rS"></td></tr>
+    </table>
+    <div class="best" id="rBest"></div>
+    <div class="row"><button class="go" id="again">もう いっかい</button><button class="alt" id="menu">メニュー</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- settings
+const DANCER = "ハク";          // printed on the T-shirt
+const RABBIT = "ムク";         // the pet rabbit's name, used in its speech bubbles
+const BPM = 120, BEAT = 60 / BPM;
+const DIFFS = [
+  { name: "Easy",   approach: 2.2, win: [0.075, 0.13, 0.2],  fever: 10, minGap: 2,   offbeats: false },
+  { name: "Normal", approach: 1.7, win: [0.06, 0.11, 0.17],  fever: 20, minGap: 1,   offbeats: true },
+  { name: "Hard",   approach: 1.3, win: [0.05, 0.095, 0.15], fever: 30, minGap: 0.5, offbeats: true },
+];
+// limbs: 0 left hand, 1 right hand, 2 left foot, 3 right foot
+const LIMBS = [
+  { color: "#ff5fa2", sym: "heart" },
+  { color: "#45b6ff", sym: "star" },
+  { color: "#5ee07a", sym: "note" },
+  { color: "#ff8a3d", sym: "carrot" },
+];
+const RAINBOW = ["#ff5f6d", "#ff9f43", "#ffd23f", "#9be15d", "#3ee0c2", "#45b6ff", "#7a7bff", "#c06bff", "#ff6bd6"];
+
+// ---------------------------------------------------------------- the song: "にじいろホップ" (Rainbow Hop)
+const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const midi = n => 12 * (+n.slice(-1) + 1) + PC[n[0]];
+const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+const mel = s => s.split("|").map(x => { const [b, n, d] = x.trim().split(/\s+/); return { b: +b, m: midi(n), d: +d }; });
+
+const V1 = mel("0 E5 .5|.5 E5 .5|1 D5 .5|1.5 C5 .5|2 D5 1|3.5 E5 .5");
+const V2 = mel("0 C5 .5|.5 A4 1.5|2 C5 .5|2.5 D5 .5|3 C5 1");
+const V3 = mel("0 E5 .5|.5 E5 .5|1 G5 .5|1.5 E5 .5|2 D5 1|3 C5 .5|3.5 D5 .5");
+const V4 = mel("0 D5 1.5|2 B4 1.5");
+const V8 = mel("0 D5 .5|.5 E5 .5|1 G5 1.5|3 A5 1");
+const P1 = mel("0 D5 .5|.5 F5 .5|1 A5 1|2 G5 .5|2.5 F5 .5|3 E5 1");
+const P2 = mel("0 E5 .5|.5 G5 .5|1 B5 1|2 A5 .5|2.5 G5 .5|3 E5 1");
+const P3 = mel("0 F5 .5|.5 G5 .5|1 A5 .5|1.5 C6 .5|2 A5 1|3 G5 1");
+const P4 = mel("0 G5 .5|.5 G5 .5|1 G5 .5|1.5 G5 .5|2 B5 1|3 D6 1");
+const C1 = mel("0 C6 .5|.5 A5 .5|1 C6 .5|1.5 A5 .5|2 G5 1|3 A5 .5|3.5 C6 .5");
+const C2 = mel("0 D6 1|1 B5 .5|1.5 G5 .5|2 B5 1|3 A5 .5|3.5 G5 .5");
+const C3 = mel("0 E5 .5|.5 G5 .5|1 B5 .5|1.5 G5 .5|2 A5 1|3 G5 .5|3.5 E5 .5");
+const C4 = mel("0 A5 1.5|2 E5 .5|2.5 G5 .5|3 A5 1");
+const C8 = mel("0 A5 .5|.5 C6 .5|1 A5 2");
+
+const CH = {
+  Am: { r: 45, p: [57, 60, 64] }, F: { r: 41, p: [57, 60, 65] }, C: { r: 48, p: [55, 60, 64] },
+  G: { r: 43, p: [55, 59, 62] }, Dm: { r: 50, p: [57, 62, 65] }, Em: { r: 40, p: [55, 59, 64] },
+};
+// hand-made step charts for the parts without a tune, per difficulty, one list of [beat, limb] per bar
+const INTRO_CHART = [
+  [[], [], [[0, 2], [2, 3]], [[0, 0], [2, 1]]],
+  [[], [], [[0, 2], [1, 3], [2, 2], [3, 3]], [[0, 0], [1, 1], [2, 0], [3, 1]]],
+  [[], [], [[0, 2], [1, 3], [2, 2], [3, 3]], [[0, 0], [1, 1], [2, 0], [2.5, 1], [3, 0], [3.5, 1]]],
+];
+const BREAK_CHART = [
+  [[[0, 0], [2, 1]], [[0, 2], [2, 3]], [[0, 0], [2, 3]], [[0, 1], [2, 2]]],
+  [[[0, 0], [1, 1], [2, 0], [3, 1]], [[0, 2], [1, 3], [2, 2], [3, 3]],
+   [[0, 0], [1, 3], [2, 1], [3, 2]], [[0, 0], [1, 1], [2, 2], [2.5, 3], [3, 0], [3, 1]]],
+  [[[0, 0], [.5, 1], [1, 0], [1.5, 1], [2, 2], [2.5, 3], [3, 2], [3.5, 3]],
+   [[0, 2], [.5, 3], [1, 2], [1.5, 3], [2, 0], [2, 1], [3, 0], [3.5, 1]],
+   [[0, 1], [.5, 0], [1, 1], [1.5, 0], [2, 3], [2.5, 2], [3, 3], [3.5, 2]],
+   [[0, 0], [.5, 1], [1, 3], [1.5, 2], [2, 0], [2.5, 1], [3, 2], [3, 3]]],
+];
+const OUTRO_CHART = [0, 1, 2].map(() => [[[0, 0], [0, 1]], []]);
+
+const SECTIONS = [
+  { type: "intro",  bars: 4,  chords: ["Am", "F", "C", "G"], chart: INTRO_CHART },
+  { type: "verse",  bars: 8,  chords: ["Am", "F", "C", "G"], mel: [V1, V2, V3, V4, V1, V2, V3, V8] },
+  { type: "pre",    bars: 4,  chords: ["Dm", "Em", "F", "G"], mel: [P1, P2, P3, P4] },
+  { type: "chorus", bars: 8,  chords: ["F", "G", "Em", "Am"], mel: [C1, C2, C3, C4, C1, C2, C3, C8] },
+  { type: "break",  bars: 4,  chords: ["Am", "F", "C", "G"], chart: BREAK_CHART, banner: "ダンスブレイク！" },
+  { type: "verse",  bars: 8,  chords: ["Am", "F", "C", "G"], mel: [V1, V2, V3, V4, V1, V2, V3, V8] },
+  { type: "pre",    bars: 4,  chords: ["Dm", "Em", "F", "G"], mel: [P1, P2, P3, P4] },
+  { type: "chorus", bars: 16, chords: ["F", "G", "Em", "Am"],
+    mel: [C1, C2, C3, C4, C1, C2, C3, C4, C1, C2, C3, C4, C1, C2, C3, C8], banner: "ラストサビ！" },
+  { type: "outro",  bars: 2,  chords: ["Am", "Am"], chart: OUTRO_CHART },
+];
+const SONG_BEATS = 4 * SECTIONS.reduce((a, s) => a + s.bars, 0);
+
+// ---------------------------------------------------------------- audio
+let AC = null, out = null, leadBus = null, noiseBuf = null;
+
+function initAudio() {
+  if (AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+  noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+}
+
+// a fresh output chain per play, so quitting can silence notes that are already scheduled
+function newBus() {
+  if (out) { out.gain.setValueAtTime(0, AC.currentTime); setTimeout(((o) => () => o.disconnect())(out), 500); }
+  const comp = AC.createDynamicsCompressor();
+  comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.15;
+  out = AC.createGain(); out.gain.value = 0.9;
+  out.connect(comp); comp.connect(AC.destination);
+  leadBus = AC.createGain(); leadBus.connect(out);
+  const dl = AC.createDelay(1), fb = AC.createGain(), wet = AC.createGain();
+  dl.delayTime.value = BEAT * 0.75; fb.gain.value = 0.3; wet.gain.value = 0.22;
+  leadBus.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(out);
+}
+
+function tone(t, type, f, dur, vol, { a = 0.005, r = 0.08, lp = 0, dest = out, det = 0, vib = 0 } = {}) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = f; o.detune.value = det;
+  const hold = Math.max(a, dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + a);
+  g.gain.setValueAtTime(vol, t + hold); g.gain.exponentialRampToValueAtTime(0.0001, t + hold + r);
+  let n = o;
+  if (lp) { const fl = AC.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = lp; o.connect(fl); n = fl; }
+  if (vib) {
+    const l = AC.createOscillator(), lg = AC.createGain();
+    l.frequency.value = 5.5; lg.gain.value = vib; l.connect(lg); lg.connect(o.detune);
+    l.start(t + 0.12); l.stop(t + hold + r + 0.05);
+  }
+  n.connect(g); g.connect(dest);
+  o.start(t); o.stop(t + hold + r + 0.05);
+}
+function noise(t, type, freq, q, vol, decay) {
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+  s.connect(f); f.connect(g); g.connect(out);
+  s.start(t, Math.random() * 0.5); s.stop(t + decay + 0.05);
+}
+function kick(t) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.frequency.setValueAtTime(190, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.1);
+  g.gain.setValueAtTime(1, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.35);
+  noise(t, "bandpass", 2500, 1, 0.15, 0.015); // a click, so it still thumps on a phone speaker
+}
+const hat = (t, v = 1, open = false) => noise(t, "highpass", 7500, 0.7, 0.16 * v, open ? 0.22 : 0.045);
+function clap(t) {
+  for (let k = 0; k < 3; k++) noise(t + k * 0.011, "bandpass", 1300, 1.2, 0.5, 0.02);
+  noise(t + 0.033, "bandpass", 1300, 1, 0.45, 0.18);
+}
+function snare(t, v) { noise(t, "bandpass", 2000, 0.8, 0.4 * v, 0.12); tone(t, "triangle", 190, 0.01, 0.3 * v, { r: 0.07 }); }
+const crash = t => noise(t, "highpass", 5000, 0.5, 0.22, 1.3);
+function riser(t, dur) {
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; s.loop = true; f.type = "bandpass"; f.Q.value = 2;
+  f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(7000, t + dur);
+  g.gain.setValueAtTime(0.001, t); g.gain.exponentialRampToValueAtTime(0.18, t + dur);
+  g.gain.linearRampToValueAtTime(0, t + dur + 0.02);
+  s.connect(f); f.connect(g); g.connect(out); s.start(t); s.stop(t + dur + 0.05);
+}
+const bass = (t, m, d) => tone(t, "sawtooth", hz(m), d * 0.85, 0.26, { r: 0.06, lp: 750 });
+function pad(t, ms, d, v = 1) {
+  for (const m of ms) for (const det of [-9, 9]) tone(t, "sawtooth", hz(m), d, 0.03 * v, { a: 0.06, r: 0.3, lp: 1500, det });
+}
+const pluck = (t, m, v = 1) => tone(t, "square", hz(m), 0.02, 0.06 * v, { a: 0.003, r: 0.22, lp: 2600 });
+function lead(t, m, d) {
+  tone(t, "square", hz(m - 12), d * 0.9, 0.085, { r: 0.08, lp: 3000, dest: leadBus, vib: 12 });
+  tone(t, "triangle", hz(m), d * 0.9, 0.05, { r: 0.08, dest: leadBus, vib: 12 });
+}
+
+function buildSong() {
+  const ev = [];
+  const add = (beat, fn) => ev.push({ t: beat * BEAT, fn });
+  let bar = 0;
+  for (const sec of SECTIONS) {
+    for (let b = 0; b < sec.bars; b++, bar++) {
+      const B = bar * 4, ch = CH[sec.chords[b % sec.chords.length]], ty = sec.type, lastBar = b === sec.bars - 1;
+      const each = (beats, fn) => beats.forEach(x => add(B + x, a => fn(a, x)));
+      const eighths = [0, .5, 1, 1.5, 2, 2.5, 3, 3.5];
+      if (ty === "intro") {
+        add(B, a => pad(a, ch.p, 4 * BEAT - 0.05, 0.8));
+        each(eighths, (a, x) => hat(a, x % 1 ? 0.5 : 0.8));
+        if (b >= 2) { each([0, 1, 2, 3], kick); each([0, 1, 2, 3], a => bass(a, ch.r, 1)); }
+        if (b === 3) each([1, 3], clap);
+      } else if (ty === "verse") {
+        add(B, a => pad(a, ch.p, 4 * BEAT - 0.05, 0.7));
+        each([0, 2, 2.5], kick); each([1, 3], clap);
+        each(eighths, (a, x) => hat(a, x % 1 ? 0.45 : 0.7));
+        for (const [x, o, d] of [[0, 0, 1.25], [1.5, 0, .5], [2, 0, .5], [2.5, 12, .5], [3.5, 0, .5]]) add(B + x, a => bass(a, ch.r + o, d));
+      } else if (ty === "pre") {
+        add(B, a => pad(a, ch.p, 4 * BEAT - 0.05, 0.9));
+        each([0, 1, 2, 3], kick); each([0, 1, 2, 3], a => bass(a, ch.r, 1));
+        each(eighths, (a, x) => hat(a, x % 1 ? 0.5 : 0.8));
+        if (!lastBar) each([1, 3], clap);
+        else for (let i = 0; i < 16; i++) add(B + i / 4, a => snare(a, 0.3 + 0.7 * i / 15));
+        if (b === 2) add(B, a => riser(a, 8 * BEAT));
+      } else if (ty === "chorus") {
+        if (b % 8 === 0) add(B, crash);
+        add(B, a => pad(a, ch.p, 4 * BEAT - 0.05));
+        each([0, 1, 2, 3], kick); each([1, 3], clap);
+        each(eighths, (a, x) => x % 1 ? hat(a, 0.8, true) : hat(a, 0.6));
+        each(eighths, (a, x) => bass(a, ch.r + (x % 1 ? 12 : 0), .5));
+        each(eighths, (a, x) => pluck(a, ch.p[[0, 1, 2, 1][(x * 2) % 4]] + 12, 0.8));
+      } else if (ty === "break") {
+        if (b === 0) add(B, crash);
+        const hits = [0, .75, 1.5, 2.5, 3];
+        each(hits, kick); each([1, 3], clap);
+        for (let i = 0; i < 16; i++) add(B + i / 4, a => hat(a, i % 2 ? 0.35 : 0.7));
+        each(hits, a => bass(a, ch.r, .5));
+        each(hits, a => ch.p.forEach(m => pluck(a, m + 12, 0.7)));
+        if (lastBar) each([3, 3.25, 3.5, 3.75], (a, x) => snare(a, 0.5 + (x - 3)));
+      } else if (ty === "outro" && b === 0) {
+        add(B, crash); add(B, kick); add(B, a => bass(a, ch.r, 4));
+        add(B, a => pad(a, ch.p, 6 * BEAT, 1.2)); add(B, a => ch.p.forEach(m => pluck(a, m + 12)));
+      }
+      if (sec.mel) for (const n of sec.mel[b]) add(B + n.b, a => lead(a, n.m, n.d * BEAT));
+    }
+  }
+  return ev.sort((a, b) => a.t - b.t);
+}
+
+// the step chart follows the tune: high notes are hands, low notes feet, going up steps right, going down steps left
+function buildChart(d) {
+  const D = DIFFS[d], notes = [];
+  let bar = 0;
+  for (const sec of SECTIONS) {
+    if (sec.mel) {
+      const kept = [];
+      let last = -99;
+      sec.mel.forEach((bm, b) => bm.forEach(n => {
+        const beat = (bar + b) * 4 + n.b;
+        if (!D.offbeats && n.b % 1) return;
+        if (beat - last >= D.minGap - 1e-6) { kept.push({ beat, m: n.m }); last = beat; }
+      }));
+      const sorted = kept.map(n => n.m).sort((a, b) => a - b), med = sorted[sorted.length >> 1];
+      let prevM = null, side = 1, p1 = -1, p2 = -1;
+      for (const n of kept) {
+        if (prevM !== null) side = n.m > prevM ? 1 : n.m < prevM ? -1 : -side;
+        prevM = n.m;
+        let row = n.m >= med ? 0 : 1, limb = row * 2 + (side > 0 ? 1 : 0);
+        if (limb === p1 && limb === p2) { row = 1 - row; limb = row * 2 + (side > 0 ? 1 : 0); }
+        p2 = p1; p1 = limb;
+        notes.push({ beat: n.beat, limb });
+        if (d === 2 && sec.type === "chorus" && n.beat % 8 === 0) notes.push({ beat: n.beat, limb: limb ^ 1 });
+      }
+    } else if (sec.chart) {
+      sec.chart[d].forEach((steps, b) => steps.forEach(([x, limb]) => notes.push({ beat: (bar + b) * 4 + x, limb })));
+    }
+    bar += sec.bars;
+  }
+  notes.sort((a, b) => a.beat - b.beat);
+  return notes.map(n => ({ t: n.beat * BEAT, limb: n.limb, judged: false }));
+}
+
+// ---------------------------------------------------------------- storage (optional; the game works without it)
+const store = {
+  get(k, def) { try { const v = localStorage.getItem("hakudance-" + k); return v === null ? def : JSON.parse(v); } catch { return def; } },
+  set(k, v) { try { localStorage.setItem("hakudance-" + k, JSON.stringify(v)); } catch {} },
+};
+let offsetMs = store.get("offset", 0);
+
+// ---------------------------------------------------------------- game state
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const face = new Image(); face.src = "face.png";
+const $ = id => document.getElementById(id);
+let L = {}, dpr = 1;
+let mode = "menu";            // menu | play | pause | end
+let G = null;                  // the current play
+let clockOff = null;           // smoothed (context time - performance time), seconds
+let particles = [], popups = [], bubble = null;
+
+function layout() {
+  const W = innerWidth, H = innerHeight;
+  dpr = Math.min(devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  const s = Math.min(W / 400, (H - 70) / 560), top = 70 + (H - 70 - 560 * s) / 2, cx = W / 2, cy = top + 205 * s;
+  L = { W, H, s, cx, cy, R: 36 * s, origin: [cx, cy + 30 * s], split: cy + 40 * s,
+    targets: [[cx - 150 * s, cy - 120 * s], [cx + 150 * s, cy - 120 * s], [cx - 125 * s, cy + 195 * s], [cx + 125 * s, cy + 195 * s]] };
+}
+addEventListener("resize", layout); layout();
+
+function ctxTimeAt(perf) {
+  if (AC.getOutputTimestamp) {
+    const ts = AC.getOutputTimestamp();
+    if (ts.contextTime > 0 && ts.performanceTime > 0) return ts.contextTime + (perf - ts.performanceTime) / 1000;
+  }
+  return AC.currentTime - (AC.outputLatency || AC.baseLatency || 0) + (perf - performance.now()) / 1000;
+}
+function syncClock(perf) {
+  const target = ctxTimeAt(perf) - perf / 1000;
+  if (clockOff === null || Math.abs(target - clockOff) > 0.08) clockOff = target;
+  else clockOff += (target - clockOff) * 0.08;
+}
+const songTimeAt = perf => perf / 1000 + clockOff - G.t0 - offsetMs / 1000;
+
+function start(d) {
+  initAudio();
+  AC.resume();
+  newBus();
+  document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+  navigator.wakeLock?.request("screen").then(l => (G && (G.lock = l))).catch(() => {});
+  G = { d, D: DIFFS[d], t0: AC.currentTime + 0.5, events: buildSong(), ei: 0, notes: buildChart(d),
+    score: 0, combo: 0, maxCombo: 0, counts: [0, 0, 0, 0], fever: false,
+    hitT: [-9, -9, -9, -9], press: [-9, -9, -9, -9], wave: [1, 1, 1, 1], missT: -9, banner: null };
+  clockOff = null; particles = []; popups = []; bubble = null;
+  mode = "play";
+  show(null);
+}
+
+function scheduler() {
+  if (mode !== "play" || !G) return;
+  const horizon = AC.currentTime + 0.25;
+  while (G.ei < G.events.length && G.t0 + G.events[G.ei].t < horizon) {
+    const e = G.events[G.ei++], at = G.t0 + e.t;
+    if (at > AC.currentTime - 0.05) e.fn(Math.max(at, AC.currentTime));
+  }
+}
+setInterval(scheduler, 25);
+
+function show(id) {
+  for (const o of ["title", "pause", "result"]) $(o).classList.toggle("hidden", o !== id);
+}
+function pause() {
+  if (mode !== "play") return;
+  G.pauseT = songTimeAt(performance.now());
+  mode = "pause"; AC.suspend(); show("pause");
+}
+function resume() {
+  mode = "play"; clockOff = null; AC.resume(); show(null);
+}
+function toMenu() {
+  if (out) out.gain.setValueAtTime(0, AC.currentTime);
+  if (AC) AC.resume();
+  G?.lock?.release?.().catch(() => {});
+  G = null; mode = "menu"; refreshBest(); show("title");
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
+
+// ---------------------------------------------------------------- input and judging
+cv.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  if (mode !== "play" || clockOff === null) return;
+  if (e.clientX > L.W - 64 && e.clientY < 64) { pause(); return; }
+  const limb = (e.clientY < L.split ? 0 : 2) + (e.clientX < L.cx ? 0 : 1);
+  const t = songTimeAt(e.timeStamp || performance.now());
+  G.press[limb] = t;
+  let best = null;
+  for (const n of G.notes) {
+    if (n.t - t > 0.3) break;
+    if (n.judged || n.limb !== limb) continue;
+    if (Math.abs(n.t - t) <= G.D.win[2] && (!best || Math.abs(n.t - t) < Math.abs(best.t - t))) best = n;
+  }
+  if (best) judge(best, Math.abs(best.t - t), t);
+});
+
+const JUDGE = [
+  { text: "パーフェクト！", color: "#ffd23f", pts: 100 },
+  { text: "グレート！", color: "#5ee07a", pts: 70 },
+  { text: "グッド", color: "#45b6ff", pts: 40 },
+  { text: "ミス", color: "#ff6b6b", pts: 0 },
+];
+function judge(n, err, t) {
+  n.judged = true;
+  const k = err <= G.D.win[0] ? 0 : err <= G.D.win[1] ? 1 : 2;
+  G.counts[k]++;
+  G.combo++; G.maxCombo = Math.max(G.maxCombo, G.combo);
+  const wasFever = G.fever;
+  G.fever = G.combo >= G.D.fever;
+  G.score += JUDGE[k].pts * (G.fever ? 2 : 1);
+  G.hitT[n.limb] = t; G.wave[n.limb] = -G.wave[n.limb];
+  const [x, y] = L.targets[n.limb];
+  burst(x, y, LIMBS[n.limb].color, k === 0 ? 22 : 12);
+  popups.push({ text: JUDGE[k].text, color: JUDGE[k].color, x: edge(x), y: y - L.R - 10 * L.s, born: performance.now() });
+  if (k < 2) navigator.vibrate?.(12);
+  if (G.fever && !wasFever) say("フィーバー タイム！✨");
+  else if ([10, 25, 50, 75, 100, 150].includes(G.combo)) say(G.combo + "コンボ！ ぴょんぴょん！");
+}
+function miss(n) {
+  n.judged = true;
+  G.counts[3]++;
+  if (G.combo >= 10) say("ドンマイ！ がんばって！");
+  G.combo = 0; G.fever = false; G.missT = n.t;
+  const [x, y] = L.targets[n.limb];
+  popups.push({ text: "ミス", color: "#ff6b6b", x: edge(x), y: y - L.R - 10 * L.s, born: performance.now() });
+}
+const edge = x => Math.min(Math.max(x, 76 * L.s), L.W - 76 * L.s);   // keep words on screen
+function say(text) { bubble = { text, born: performance.now() }; }
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = (120 + Math.random() * 260) * L.s;
+    particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.5 + Math.random() * 0.3,
+      age: 0, color: i % 3 ? color : "#fff", r: (3 + Math.random() * 4) * L.s });
+  }
+}
+
+function finish() {
+  mode = "end";
+  G?.lock?.release?.().catch(() => {});
+  const [p, g, o, m] = G.counts, total = p + g + o + m;
+  const acc = total ? (p + 0.7 * g + 0.4 * o) / total : 0;
+  const [grade, stars, msg] = acc >= 0.95 ? ["S", 3, "すごい！ NiziUと デビュー できるね！🌈"]
+    : acc >= 0.85 ? ["A", 3, DANCER + "の ダンス、さいこう！"]
+    : acc >= 0.7 ? ["B", 2, "ナイス！ " + RABBIT + "も ぴょんぴょん よろこんでるよ！"]
+    : acc >= 0.5 ? ["C", 1, "いいね！ れんしゅうすれば もっと うまく なるよ！"]
+    : ["C", 0, "がんばったね！ もう いっかい おどろう！"];
+  $("rGrade").textContent = grade;
+  $("rGrade").style.color = { S: "#ffd23f", A: "#ff5fa2", B: "#45b6ff", C: "#5ee07a" }[grade];
+  $("rStars").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
+  $("rMsg").textContent = (m === 0 ? "フルコンボ！ " : "") + msg;
+  $("rP").textContent = p; $("rG").textContent = g; $("rO").textContent = o; $("rM").textContent = m;
+  $("rC").textContent = G.maxCombo; $("rS").textContent = G.score;
+  const prev = store.get("best" + G.d, 0);
+  $("rBest").textContent = G.score > prev ? "🏆 ベストスコア こうしん！" : "ベスト " + prev;
+  if (G.score > prev) store.set("best" + G.d, G.score);
+  show("result");
+}
+
+// ---------------------------------------------------------------- drawing helpers
+function symPath(sym, r) {
+  ctx.beginPath();
+  if (sym === "heart") {
+    ctx.moveTo(0, r * 0.85);
+    ctx.bezierCurveTo(-r * 1.35, -r * 0.05, -r * 0.6, -r * 1.15, 0, -r * 0.42);
+    ctx.bezierCurveTo(r * 0.6, -r * 1.15, r * 1.35, -r * 0.05, 0, r * 0.85);
+  } else if (sym === "star") {
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
+      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
+  } else if (sym === "note") {
+    ctx.ellipse(-r * 0.3, r * 0.5, r * 0.38, r * 0.28, -0.4, 0, Math.PI * 2);
+    ctx.rect(r * 0.0, -r * 0.85, r * 0.16, r * 1.4);
+    ctx.moveTo(r * 0.16, -r * 0.85);
+    ctx.quadraticCurveTo(r * 0.75, -r * 0.55, r * 0.55, -r * 0.05);
+    ctx.quadraticCurveTo(r * 0.55, -r * 0.45, r * 0.16, -r * 0.45);
+    ctx.closePath();
+  } else {
+    ctx.moveTo(-r * 0.5, -r * 0.35);
+    ctx.quadraticCurveTo(0, -r * 0.6, r * 0.5, -r * 0.35);
+    ctx.lineTo(r * 0.05, r * 0.95);
+    ctx.quadraticCurveTo(0, r * 1.02, -r * 0.05, r * 0.95);
+    ctx.closePath();
+  }
+}
+function drawSym(limb, x, y, r, alpha = 1) {
+  const { sym, color } = LIMBS[limb];
+  ctx.save(); ctx.translate(x, y); ctx.globalAlpha = alpha;
+  if (sym === "carrot") {
+    ctx.rotate(-0.5);
+    ctx.fillStyle = "#3fbf4f";
+    for (const a of [-0.5, 0, 0.5]) { ctx.beginPath(); ctx.ellipse(Math.sin(a) * r * 0.45, -r * 0.7, r * 0.14, r * 0.38, a, 0, Math.PI * 2); ctx.fill(); }
+  }
+  symPath(sym, r);
+  ctx.lineWidth = Math.max(2, r * 0.16); ctx.strokeStyle = "#fff"; ctx.lineJoin = "round";
+  ctx.stroke(); ctx.fillStyle = color; ctx.fill();
+  ctx.restore();
+}
+function hose(j, e, len, w, color, outward) {
+  const dx = e[0] - j[0], dy = e[1] - j[1], d = Math.hypot(dx, dy) || 1;
+  const bend = d < len ? Math.sqrt(len * len - d * d) * 0.5 : 0;
+  let nx = -dy / d, ny = dx / d;
+  if (nx * outward < 0) { nx = -nx; ny = -ny; }
+  const c = [(j[0] + e[0]) / 2 + nx * bend, (j[1] + e[1]) / 2 + ny * bend];
+  ctx.beginPath(); ctx.moveTo(j[0], j[1]); ctx.quadraticCurveTo(c[0], c[1], e[0], e[1]);
+  ctx.lineCap = "round"; ctx.strokeStyle = "#2a1640"; ctx.lineWidth = w + 5 * L.s; ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
+}
+function circle(x, y, r, fill, stroke, lw) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+const easeOut = x => 1 - (1 - x) * (1 - x);
+function reach(i, t) {   // how far limb i is stretched towards its circle (0..1)
+  if (!G) return 0;
+  const d = t - G.hitT[i];
+  if (d < 0 || d > 0.42) return 0;
+  return d < 0.07 ? easeOut(d / 0.07) : 1 - easeOut((d - 0.07) / 0.35);
+}
+
+// ---------------------------------------------------------------- scene
+function drawBackground(t, beat, fever) {
+  const { W, H, s } = L;
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, fever ? `hsl(${(t * 60) % 360},55%,22%)` : "#1d0b3d");
+  g.addColorStop(1, "#4a1a6b");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // nine rainbow spotlights
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  const pulse = 0.5 + 0.5 * Math.cos(2 * Math.PI * (beat % 1));
+  for (let i = 0; i < 9; i++) {
+    const x0 = W * (i + 0.5) / 9, a = Math.sin(t * 0.9 + i * 0.8) * 0.35 + (i - 4) * 0.06;
+    const len = H * 1.1, wd = 0.13;
+    ctx.globalAlpha = (fever ? 0.22 : 0.1) + 0.06 * pulse;
+    ctx.fillStyle = RAINBOW[i];
+    ctx.beginPath(); ctx.moveTo(x0, -10);
+    ctx.lineTo(x0 + Math.sin(a - wd) * len, Math.cos(a - wd) * len);
+    ctx.lineTo(x0 + Math.sin(a + wd) * len, Math.cos(a + wd) * len);
+    ctx.fill();
+  }
+  ctx.restore();
+  // stage floor
+  ctx.fillStyle = "#ffffff14";
+  ctx.beginPath(); ctx.ellipse(L.cx, L.cy + 165 * s, 190 * s, 34 * s, 0, 0, Math.PI * 2); ctx.fill();
+  // crowd with light sticks
+  const n = Math.ceil(W / (34 * s));
+  for (let i = 0; i <= n; i++) {
+    const x = (i + 0.5) * W / (n + 1), sw = Math.sin(Math.PI * beat + i) * 0.5, y = H + 6 * s;
+    const sx = x + Math.sin(sw) * 34 * s, sy = y - 44 * s - Math.cos(sw) * 10 * s;
+    ctx.strokeStyle = "#ffffffaa"; ctx.lineWidth = 3 * s;
+    ctx.beginPath(); ctx.moveTo(x, y - 14 * s); ctx.lineTo(sx, sy); ctx.stroke();
+    circle(sx, sy, 6 * s, RAINBOW[i % 9]);
+    circle(x, y, 15 * s, "#12062a");
+  }
+}
+
+function drawRabbit(t, beat, combo) {
+  const { s, cx, cy } = L;
+  const ph = ((beat % 1) + 1) % 1;
+  const hop = Math.sin(Math.PI * ph) * (combo >= 10 ? 16 : 8) * s;
+  const spin = bubble && performance.now() - bubble.born < 600 ? (performance.now() - bubble.born) / 600 * Math.PI * 2 : 0;
+  const onMenu = mode === "menu";   // on the title screen it stands beside the dancer, clear of the buttons
+  const x = onMenu ? cx + 125 * s : cx, y = (onMenu ? cy + 140 * s : cy + 300 * s) - hop, r = 22 * s;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(spin);
+  ctx.fillStyle = "#0004"; ctx.beginPath(); ctx.ellipse(0, r * 1.3 + hop, r * 1.1, r * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+  const ear = Math.sin(Math.PI * beat) * 0.25;
+  for (const sd of [-1, 1]) {
+    ctx.save(); ctx.translate(sd * r * 0.4, -r * 1.3); ctx.rotate(sd * 0.25 + ear);
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = "#2a1640"; ctx.lineWidth = 2.5 * s;
+    ctx.beginPath(); ctx.ellipse(0, -r * 0.8, r * 0.3, r * 0.85, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#ffb3cf"; ctx.beginPath(); ctx.ellipse(0, -r * 0.8, r * 0.14, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = "#2a1640"; ctx.lineWidth = 2.5 * s;
+  ctx.beginPath(); ctx.ellipse(0, r * 0.55, r * 0.9, r * 0.75, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -r * 0.55, r * 0.75, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // little arms waving
+  for (const sd of [-1, 1]) {
+    const up = Math.sin(Math.PI * beat + (sd > 0 ? Math.PI : 0)) * 0.8;
+    ctx.beginPath(); ctx.ellipse(sd * r * 0.85, r * 0.2, r * 0.18, r * 0.35, sd * (0.6 + up), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+  circle(-r * 0.28, -r * 0.62, r * 0.11, "#2a1640"); circle(r * 0.28, -r * 0.62, r * 0.11, "#2a1640");
+  circle(-r * 0.25, -r * 0.66, r * 0.04, "#fff"); circle(r * 0.31, -r * 0.66, r * 0.04, "#fff");
+  circle(0, -r * 0.42, r * 0.09, "#ff7fae");
+  circle(-r * 0.5, -r * 0.35, r * 0.13, "#ffb3cf88"); circle(r * 0.5, -r * 0.35, r * 0.13, "#ffb3cf88");
+  ctx.restore();
+  // name tag, standing still on the floor below the hops
+  ctx.font = `bold ${Math.round(13 * s)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#fff"; ctx.fillText(RABBIT, x, y + hop + r * 1.8);
+  if (bubble) {
+    const age = (performance.now() - bubble.born) / 1000;
+    if (age > 2) { bubble = null; return; }
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, (2 - age) * 3);
+    ctx.font = `bold ${Math.round(15 * s)}px system-ui, sans-serif`;
+    const w = ctx.measureText(bubble.text).width + 20 * s, bx = Math.min(Math.max(x + 30 * s, 8), L.W - w - 8), by = y - 92 * s;
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(bx, by, w, 30 * s, 12 * s); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx + 10 * s, by + 28 * s); ctx.lineTo(x + 8 * s, y - 50 * s); ctx.lineTo(bx + 28 * s, by + 28 * s); ctx.fill();
+    ctx.fillStyle = "#c2187a"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(bubble.text, bx + 10 * s, by + 15 * s);
+    ctx.restore();
+  }
+}
+
+function drawDancer(t, beat, fever) {
+  const { s, cx, cy } = L;
+  const ph = ((beat % 1) + 1) % 1, gv = fever ? 1.6 : 1;
+  const bob = 7 * s * (0.5 + 0.5 * Math.cos(2 * Math.PI * ph)) * gv;
+  const sway = Math.sin(Math.PI * beat) * 6 * s * gv;
+  const bx = cx + sway, by = cy + bob;
+  const wob = G && t - G.missT < 0.5 && t > G.missT ? Math.sin((t - G.missT) * 40) * 0.12 * (1 - (t - G.missT) * 2) : 0;
+  const tilt = Math.sin(Math.PI * beat) * 0.07 * gv + wob;
+  const pump = Math.sin(Math.PI * beat);
+  const joints = [[bx - 42 * s, by - 12 * s], [bx + 42 * s, by - 12 * s], [bx - 22 * s, by + 72 * s], [bx + 22 * s, by + 72 * s]];
+  const idle = [
+    [bx - 74 * s, by + 28 * s - pump * 16 * s * gv], [bx + 74 * s, by + 28 * s + pump * 16 * s * gv],
+    [cx - 44 * s + sway * 0.3, cy + 160 * s - Math.max(0, pump) * 10 * s], [cx + 44 * s + sway * 0.3, cy + 160 * s - Math.max(0, -pump) * 10 * s],
+  ];
+  const eff = idle.map((p, i) => {
+    const e = reach(i, t);
+    if (!e) return p;
+    const T = L.targets[i], dx = T[0] - p[0], dy = T[1] - p[1], len = Math.hypot(dx, dy) || 1;
+    const arc = Math.sin(Math.PI * e) * G.wave[i] * 26 * s;
+    return [p[0] + dx * e - dy / len * arc, p[1] + dy * e + dx / len * arc];
+  });
+  const skin = "#f4c9a8", ink = "#2a1640";
+  // legs and shoes
+  for (const i of [2, 3]) {
+    const sd = i === 2 ? -1 : 1;
+    hose(joints[i], eff[i], 92 * s, 24 * s, "#3c6fd1", sd);
+    ctx.save(); ctx.translate(eff[i][0] + sd * 6 * s, eff[i][1] + 4 * s); ctx.rotate(sd * 0.15 - reach(i, t) * sd * 0.5);
+    ctx.fillStyle = "#ff5fa2"; ctx.strokeStyle = ink; ctx.lineWidth = 3 * s;
+    ctx.beginPath(); ctx.ellipse(0, 0, 19 * s, 11 * s, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.fillRect(-16 * s, 4 * s, 32 * s, 4 * s);
+    ctx.restore();
+  }
+  // shorts and T-shirt
+  ctx.fillStyle = "#3c6fd1"; ctx.strokeStyle = ink; ctx.lineWidth = 3 * s;
+  ctx.beginPath(); ctx.roundRect(bx - 40 * s, by + 50 * s, 80 * s, 34 * s, 10 * s); ctx.fill(); ctx.stroke();
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(bx - 46 * s, by - 28 * s, 92 * s, 92 * s, 22 * s);
+  ctx.fillStyle = "#fff"; ctx.fill(); ctx.stroke(); ctx.clip();
+  for (let i = 0; i < 6; i++) { ctx.fillStyle = RAINBOW[i * 1.5 | 0]; ctx.fillRect(bx - 50 * s, by + (2 + i * 4.5) * s, 100 * s, 4.6 * s); }
+  ctx.fillStyle = ink; ctx.font = `900 ${Math.round(17 * s)}px system-ui, sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(DANCER, bx, by + 45 * s);
+  ctx.restore();
+  // arms, hands, sleeves
+  for (const i of [0, 1]) {
+    const sd = i === 0 ? -1 : 1;
+    hose(joints[i], eff[i], 88 * s, 15 * s, skin, sd);
+    circle(eff[i][0], eff[i][1], 11 * s, skin, ink, 3 * s);
+    circle(joints[i][0], joints[i][1] + 2 * s, 15 * s, "#fff", ink, 3 * s);
+  }
+  // head
+  const hh = 150 * s, hx = bx, hy = by - 92 * s;
+  ctx.save(); ctx.translate(hx, hy + 55 * s); ctx.rotate(tilt); ctx.translate(0, -55 * s);
+  ctx.fillStyle = skin; ctx.fillRect(-13 * s, 40 * s, 26 * s, 30 * s);
+  if (fever) {   // bunny-ear headband in fever time
+    for (const sd of [-1, 1]) {
+      ctx.save(); ctx.translate(sd * 30 * s, -hh * 0.42); ctx.rotate(sd * 0.3 + Math.sin(Math.PI * beat * 2) * 0.12);
+      ctx.fillStyle = "#fff"; ctx.strokeStyle = ink; ctx.lineWidth = 3 * s;
+      ctx.beginPath(); ctx.ellipse(0, -36 * s, 13 * s, 40 * s, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#ffb3cf"; ctx.beginPath(); ctx.ellipse(0, -34 * s, 6 * s, 28 * s, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  }
+  if (face.complete && face.naturalWidth) {
+    const w = hh * face.naturalWidth / face.naturalHeight;
+    ctx.shadowColor = "#0007"; ctx.shadowBlur = 10 * s; ctx.shadowOffsetY = 4 * s;
+    ctx.drawImage(face, -w / 2, -hh / 2, w, hh);
+  } else circle(0, 0, 60 * s, skin, ink, 3 * s);
+  ctx.restore();
+}
+
+function drawTargets(t) {
+  const { R, s } = L;
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = L.targets[i], c = LIMBS[i].color;
+    // lane from the middle
+    ctx.save(); ctx.setLineDash([4 * s, 10 * s]); ctx.strokeStyle = c + "55"; ctx.lineWidth = 3 * s;
+    ctx.beginPath(); ctx.moveTo(L.origin[0], L.origin[1]); ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
+    const near = G.notes.some(n => !n.judged && n.limb === i && Math.abs(n.t - t) < G.D.win[2]);
+    const pressed = t - G.press[i] < 0.12 && t >= G.press[i];
+    const hit = t - G.hitT[i] < 0.25 && t >= G.hitT[i] ? 1 - (t - G.hitT[i]) / 0.25 : 0;
+    circle(x, y, R * (1 + hit * 0.25), pressed ? c + "88" : "#0005", c, (near ? 7 : 4) * s);
+    drawSym(i, x, y, R * 0.55, 0.3);
+    if (hit) circle(x, y, R * (1 + (1 - hit) * 0.8), null, c + Math.round(hit * 255).toString(16).padStart(2, "0"), 4 * s);
+  }
+}
+
+function drawNotes(t) {
+  const { R } = L, [ox, oy] = L.origin;
+  for (const n of G.notes) {
+    if (n.t - t > G.D.approach) break;
+    if (n.judged) continue;
+    const p = 1 - (n.t - t) / G.D.approach;
+    if (p < 0 || p > 1.35) continue;
+    const [tx, ty] = L.targets[n.limb];
+    const alpha = p > 1 ? Math.max(0, 1 - (p - 1) / 0.35) : Math.min(1, p * 5);
+    drawSym(n.limb, ox + (tx - ox) * p, oy + (ty - oy) * p, R * 0.75 * (0.35 + 0.65 * Math.min(p, 1)), alpha);
+  }
+}
+
+function drawHud(t, beat) {
+  const { W, s } = L;
+  ctx.save();
+  ctx.fillStyle = "#fff3"; ctx.fillRect(0, 0, W, 5);
+  ctx.fillStyle = "#ff5fa2"; ctx.fillRect(0, 0, W * Math.min(1, Math.max(0, beat / SONG_BEATS)), 5);
+  ctx.textBaseline = "top"; ctx.fillStyle = "#fff";
+  ctx.font = "bold 14px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.fillText("スコア", 14, 16);
+  ctx.font = "bold 24px system-ui, sans-serif"; ctx.fillText(G.score, 14, 32);
+  if (G.combo >= 3) {
+    ctx.textAlign = "center";
+    ctx.font = `900 ${G.fever ? 34 : 28}px system-ui, sans-serif`;
+    ctx.fillStyle = G.fever ? RAINBOW[Math.floor(t * 8) % 9] : "#fff";
+    ctx.fillText(G.combo, W / 2, 12);
+    ctx.font = "bold 13px system-ui, sans-serif"; ctx.fillStyle = "#fff"; ctx.fillText(G.fever ? "コンボ ×2" : "コンボ", W / 2, G.fever ? 48 : 42);
+  }
+  // pause button
+  ctx.fillStyle = "#fff3"; ctx.beginPath(); ctx.roundRect(W - 54, 12, 42, 42, 12); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.fillRect(W - 41, 23, 6, 20); ctx.fillRect(W - 31, 23, 6, 20);
+  // count-in and section banners
+  let big = null;
+  if (beat < 4) big = "じゅんびは いい？";
+  else if (beat < 8) big = ["3", "2", "1", "おどろう！"][Math.floor(beat) - 4];
+  else {
+    let b = 0;
+    for (const sec of SECTIONS) { if (sec.banner && beat >= b * 4 && beat < b * 4 + 4) big = sec.banner; b += sec.bars; }
+  }
+  if (big) {
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `900 ${Math.round(34 * s)}px system-ui, sans-serif`;
+    ctx.lineWidth = 6 * s; ctx.strokeStyle = "#2a1640"; ctx.strokeText(big, W / 2, L.cy - 215 * s + 4 * s);
+    ctx.fillStyle = "#ffd23f"; ctx.fillText(big, W / 2, L.cy - 215 * s + 4 * s);
+  }
+  ctx.restore();
+}
+
+let lastPerf = performance.now();
+function frame(perf) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (perf - lastPerf) / 1000); lastPerf = perf;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  let t, playing = mode === "play" || mode === "pause" || mode === "end";
+  if (playing) {
+    if (mode === "play") syncClock(perf);
+    t = mode === "pause" ? G.pauseT : clockOff === null ? -1 : songTimeAt(perf);
+    if (mode === "play" && clockOff !== null) {
+      for (const n of G.notes) {
+        if (n.t > t) break;
+        if (!n.judged && t - n.t > G.D.win[2]) miss(n);
+      }
+      if (t > SONG_BEATS * BEAT + 0.5) finish();
+    }
+  } else t = perf / 1000;
+  const beat = t / BEAT, fever = playing && G && G.fever;
+  drawBackground(perf / 1000, beat, fever);
+  if (playing && G) drawTargets(t);
+  drawRabbit(t, beat, G ? G.combo : 0);
+  drawDancer(t, beat, fever);
+  if (playing && G) drawNotes(t);
+  // particles and judgement words
+  for (const p of particles) {
+    p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * L.s * dt;
+    ctx.globalAlpha = Math.max(0, 1 - p.age / p.life); circle(p.x, p.y, p.r, p.color);
+  }
+  ctx.globalAlpha = 1;
+  particles = particles.filter(p => p.age < p.life);
+  popups = popups.filter(p => perf - p.born < 600);
+  for (const p of popups) {
+    const a = (perf - p.born) / 600;
+    ctx.globalAlpha = 1 - a * a;
+    ctx.font = `900 ${Math.round(20 * L.s)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 4 * L.s; ctx.strokeStyle = "#2a1640"; ctx.strokeText(p.text, p.x, p.y - a * 30 * L.s);
+    ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y - a * 30 * L.s);
+  }
+  ctx.globalAlpha = 1;
+  if (playing && G) drawHud(t, beat);
+}
+requestAnimationFrame(frame);
+
+// ---------------------------------------------------------------- menus
+function refreshBest() {
+  for (let d = 0; d < 3; d++) { const b = store.get("best" + d, 0); $("best" + d).textContent = b ? "ベスト " + b : "★".repeat(d + 1); }
+  $("tVal").textContent = (offsetMs > 0 ? "+" : "") + offsetMs + " ms";
+}
+document.querySelectorAll(".diffs button").forEach(b => b.addEventListener("click", () => start(+b.dataset.d)));
+$("tMinus").onclick = () => { offsetMs -= 10; store.set("offset", offsetMs); refreshBest(); };
+$("tPlus").onclick = () => { offsetMs += 10; store.set("offset", offsetMs); refreshBest(); };
+$("resume").onclick = resume;
+$("quit").onclick = toMenu;
+$("again").onclick = () => start(G.d);
+$("menu").onclick = toMenu;
+refreshBest();
+</script>
+</body>
+</html>
