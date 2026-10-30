@@ -35,6 +35,7 @@
   button:active { transform: translateY(3px); box-shadow: 0 1px 0 #0006; }
   .diffs button { flex: 1; font-size: clamp(14px, 4.4vw, 19px); white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .diffs button small { font-size: 12px; opacity: .9; }
+  .diffs button small.sn { font-size: 11px; opacity: 1; }
   .d0 { background: #3fbf6a; } .d1 { background: #ff5fa2; } .d2 { background: #7a5cff; }
   .timing { font-size: 13px; background: #0008; border-radius: 12px; padding: 4px 10px; display: flex; align-items: center; gap: 8px; }
   .timing button { padding: 4px 12px; border-radius: 10px; background: #fff3; font-size: 16px; }
@@ -56,15 +57,15 @@
 <div id="title" class="ov">
   <div>
     <h1>ハクの<br>ダンス！</h1>
-    <p class="song">♪ にじいろホップ ♪</p>
+    <p class="song">♪ 3つの きょくで おどろう！ ♪</p>
   </div>
   <div class="bottom">
     <div class="howto"><b style="color:#ff5fa2">♥</b> <b style="color:#45b6ff">★</b>
       <b style="color:#5ee07a">♪</b> <b style="color:#ff8a3d">🥕</b> が まるに きたら タップ！<br>おとを だしてね 🔊</div>
     <div class="diffs">
-      <button class="d0" data-d="0">かんたん<small id="best0"></small></button>
-      <button class="d1" data-d="1">ふつう<small id="best1"></small></button>
-      <button class="d2" data-d="2">むずかしい<small id="best2"></small></button>
+      <button class="d0" data-d="0">かんたん<small class="sn"></small><small id="best0"></small></button>
+      <button class="d1" data-d="1">ふつう<small class="sn"></small><small id="best1"></small></button>
+      <button class="d2" data-d="2">むずかしい<small class="sn"></small><small id="best2"></small></button>
     </div>
     <div class="timing">タイミング ちょうせい <button id="tMinus">−</button><span id="tVal">0 ms</span><button id="tPlus">+</button></div>
   </div>
@@ -101,11 +102,12 @@
 // ---------------------------------------------------------------- settings
 const DANCER = "ハク";          // printed on the T-shirt
 const RABBIT = "ムク";         // the pet rabbit's name, used in its speech bubbles
-const BPM = 120, BEAT = 60 / BPM;
+let BEAT = 0.5;                 // seconds per beat of the current song
 const DIFFS = [
-  { name: "Easy",   approach: 2.2, win: [0.075, 0.13, 0.2],  fever: 10, minGap: 2,   offbeats: false },
-  { name: "Normal", approach: 1.7, win: [0.06, 0.11, 0.17],  fever: 20, minGap: 1,   offbeats: true },
-  { name: "Hard",   approach: 1.3, win: [0.05, 0.095, 0.15], fever: 30, minGap: 0.5, offbeats: true },
+  // minGap: fewest beats between taps (chorusGap in the chorus); specials: the combos that set off a special dance
+  { name: "Easy",   approach: 2.2, win: [0.075, 0.13, 0.2],  fever: 10, minGap: 2,   chorusGap: 1,   offbeats: false, specials: [15, 35, 60] },
+  { name: "Normal", approach: 1.7, win: [0.06, 0.11, 0.17],  fever: 20, minGap: 1,   chorusGap: 1,   offbeats: true,  specials: [30, 70, 120, 170] },
+  { name: "Hard",   approach: 1.3, win: [0.05, 0.095, 0.15], fever: 30, minGap: 0.5, chorusGap: 0.5, offbeats: true,  specials: [40, 100, 160, 230, 300] },
 ];
 // limbs: 0 left hand, 1 right hand, 2 left foot, 3 right foot
 const LIMBS = [
@@ -116,30 +118,16 @@ const LIMBS = [
 ];
 const RAINBOW = ["#ff5f6d", "#ff9f43", "#ffd23f", "#9be15d", "#3ee0c2", "#45b6ff", "#7a7bff", "#c06bff", "#ff6bd6"];
 
-// ---------------------------------------------------------------- the song: "にじいろホップ" (Rainbow Hop)
+// ---------------------------------------------------------------- the songs, one per difficulty
 const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-const midi = n => 12 * (+n.slice(-1) + 1) + PC[n[0]];
+const midi = n => 12 * (+n.slice(-1) + 1) + PC[n[0]] + (n[1] === "#" ? 1 : 0);
 const hz = m => 440 * Math.pow(2, (m - 69) / 12);
 const mel = s => s.split("|").map(x => { const [b, n, d] = x.trim().split(/\s+/); return { b: +b, m: midi(n), d: +d }; });
-
-const V1 = mel("0 E5 .5|.5 E5 .5|1 D5 .5|1.5 C5 .5|2 D5 1|3.5 E5 .5");
-const V2 = mel("0 C5 .5|.5 A4 1.5|2 C5 .5|2.5 D5 .5|3 C5 1");
-const V3 = mel("0 E5 .5|.5 E5 .5|1 G5 .5|1.5 E5 .5|2 D5 1|3 C5 .5|3.5 D5 .5");
-const V4 = mel("0 D5 1.5|2 B4 1.5");
-const V8 = mel("0 D5 .5|.5 E5 .5|1 G5 1.5|3 A5 1");
-const P1 = mel("0 D5 .5|.5 F5 .5|1 A5 1|2 G5 .5|2.5 F5 .5|3 E5 1");
-const P2 = mel("0 E5 .5|.5 G5 .5|1 B5 1|2 A5 .5|2.5 G5 .5|3 E5 1");
-const P3 = mel("0 F5 .5|.5 G5 .5|1 A5 .5|1.5 C6 .5|2 A5 1|3 G5 1");
-const P4 = mel("0 G5 .5|.5 G5 .5|1 G5 .5|1.5 G5 .5|2 B5 1|3 D6 1");
-const C1 = mel("0 C6 .5|.5 A5 .5|1 C6 .5|1.5 A5 .5|2 G5 1|3 A5 .5|3.5 C6 .5");
-const C2 = mel("0 D6 1|1 B5 .5|1.5 G5 .5|2 B5 1|3 A5 .5|3.5 G5 .5");
-const C3 = mel("0 E5 .5|.5 G5 .5|1 B5 .5|1.5 G5 .5|2 A5 1|3 G5 .5|3.5 E5 .5");
-const C4 = mel("0 A5 1.5|2 E5 .5|2.5 G5 .5|3 A5 1");
-const C8 = mel("0 A5 .5|.5 C6 .5|1 A5 2");
 
 const CH = {
   Am: { r: 45, p: [57, 60, 64] }, F: { r: 41, p: [57, 60, 65] }, C: { r: 48, p: [55, 60, 64] },
   G: { r: 43, p: [55, 59, 62] }, Dm: { r: 50, p: [57, 62, 65] }, Em: { r: 40, p: [55, 59, 64] },
+  D: { r: 50, p: [57, 62, 66] }, Bm: { r: 47, p: [54, 59, 62] },
 };
 // hand-made step charts for the parts without a tune, per difficulty, one list of [beat, limb] per bar
 const INTRO_CHART = [
@@ -158,19 +146,75 @@ const BREAK_CHART = [
 ];
 const OUTRO_CHART = [0, 1, 2].map(() => [[[0, 0], [0, 1]], []]);
 
-const SECTIONS = [
-  { type: "intro",  bars: 4,  chords: ["Am", "F", "C", "G"], chart: INTRO_CHART },
-  { type: "verse",  bars: 8,  chords: ["Am", "F", "C", "G"], mel: [V1, V2, V3, V4, V1, V2, V3, V8] },
-  { type: "pre",    bars: 4,  chords: ["Dm", "Em", "F", "G"], mel: [P1, P2, P3, P4] },
-  { type: "chorus", bars: 8,  chords: ["F", "G", "Em", "Am"], mel: [C1, C2, C3, C4, C1, C2, C3, C8] },
-  { type: "break",  bars: 4,  chords: ["Am", "F", "C", "G"], chart: BREAK_CHART, banner: "ダンスブレイク！" },
-  { type: "verse",  bars: 8,  chords: ["Am", "F", "C", "G"], mel: [V1, V2, V3, V4, V1, V2, V3, V8] },
-  { type: "pre",    bars: 4,  chords: ["Dm", "Em", "F", "G"], mel: [P1, P2, P3, P4] },
-  { type: "chorus", bars: 16, chords: ["F", "G", "Em", "Am"],
-    mel: [C1, C2, C3, C4, C1, C2, C3, C4, C1, C2, C3, C4, C1, C2, C3, C8], banner: "ラストサビ！" },
-  { type: "outro",  bars: 2,  chords: ["Am", "Am"], chart: OUTRO_CHART },
+// かんたん: "ムクの ぴょんぴょん", a bouncy bell tune in C major
+const E = {
+  V1: mel("0 E5 1|1 G5 1|2 G5 .5|2.5 A5 .5|3 G5 1"), V2: mel("0 F5 1|1 D5 1|2 D5 .5|2.5 E5 .5|3 F5 1"),
+  V3: mel("0 E5 1|1 C5 1|2 E5 .5|2.5 G5 .5|3 A5 1"), V4: mel("0 G5 1.5|2 F5 .5|2.5 E5 .5|3 D5 1"),
+  V8: mel("0 D5 1|1 E5 1|2 C5 2"),
+  C1: mel("0 A5 .5|.5 A5 .5|1 C6 1|2 A5 .5|2.5 G5 .5|3 F5 1"), C2: mel("0 G5 .5|.5 G5 .5|1 B5 1|2 G5 .5|2.5 F5 .5|3 D5 1"),
+  C3: mel("0 E5 .5|.5 G5 .5|1 C6 .5|1.5 G5 .5|2 E5 .5|2.5 G5 .5|3 C6 1"), C4: mel("0 A5 1|1 G5 1|2 E5 1|3 G5 1"),
+  C8: mel("0 C6 1|1 G5 1|2 C6 2"),
+};
+// ふつう: "にじいろホップ", K-pop in A minor
+const N = {
+  V1: mel("0 E5 .5|.5 E5 .5|1 D5 .5|1.5 C5 .5|2 D5 1|3.5 E5 .5"), V2: mel("0 C5 .5|.5 A4 1.5|2 C5 .5|2.5 D5 .5|3 C5 1"),
+  V3: mel("0 E5 .5|.5 E5 .5|1 G5 .5|1.5 E5 .5|2 D5 1|3 C5 .5|3.5 D5 .5"), V4: mel("0 D5 1.5|2 B4 1.5"),
+  V8: mel("0 D5 .5|.5 E5 .5|1 G5 1.5|3 A5 1"),
+  P1: mel("0 D5 .5|.5 F5 .5|1 A5 1|2 G5 .5|2.5 F5 .5|3 E5 1"), P2: mel("0 E5 .5|.5 G5 .5|1 B5 1|2 A5 .5|2.5 G5 .5|3 E5 1"),
+  P3: mel("0 F5 .5|.5 G5 .5|1 A5 .5|1.5 C6 .5|2 A5 1|3 G5 1"), P4: mel("0 G5 .5|.5 G5 .5|1 G5 .5|1.5 G5 .5|2 B5 1|3 D6 1"),
+  C1: mel("0 C6 .5|.5 A5 .5|1 C6 .5|1.5 A5 .5|2 G5 1|3 A5 .5|3.5 C6 .5"), C2: mel("0 D6 1|1 B5 .5|1.5 G5 .5|2 B5 1|3 A5 .5|3.5 G5 .5"),
+  C3: mel("0 E5 .5|.5 G5 .5|1 B5 .5|1.5 G5 .5|2 A5 1|3 G5 .5|3.5 E5 .5"), C4: mel("0 A5 1.5|2 E5 .5|2.5 G5 .5|3 A5 1"),
+  C8: mel("0 A5 .5|.5 C6 .5|1 A5 2"),
+};
+// むずかしい: "ほしぞら ダッシュ", fast synth-pop in E minor
+const H = {
+  V1: mel("0 E5 .5|.5 G5 .5|1 B5 .5|1.5 G5 .5|2 A5 .5|2.5 G5 .5|3 E5 1"), V2: mel("0 E5 .5|.5 E5 .5|1 G5 .5|1.5 E5 .5|2 D5 1|3 B4 1"),
+  V3: mel("0 D5 .5|.5 G5 .5|1 B5 .5|1.5 D6 .5|2 B5 .5|2.5 A5 .5|3 G5 1"), V4: mel("0 F#5 1|1 A5 .5|1.5 F#5 .5|2 D5 2"),
+  V8: mel("0 F#5 .5|.5 A5 .5|1 D6 .5|1.5 A5 .5|2 F#5 .5|2.5 A5 .5|3 B5 1"),
+  P1: mel("0 A5 .5|.5 A5 .5|1 C6 .5|1.5 A5 .5|2 B5 1|3 A5 1"), P2: mel("0 B5 .5|.5 B5 .5|1 D6 .5|1.5 B5 .5|2 C6 1|3 B5 1"),
+  P3: mel("0 C6 .5|.5 B5 .5|1 C6 .5|1.5 D6 .5|2 E6 1|3 D6 1"), P4: mel("0 D5 .5|.5 D5 .5|1 F#5 .5|1.5 F#5 .5|2 A5 .5|2.5 A5 .5|3 D6 1"),
+  C1: mel("0 E5 .5|.5 G5 .5|1 C6 .5|1.5 B5 .5|2 G5 .5|2.5 E5 .5|3 G5 .5|3.5 C6 .5"),
+  C2: mel("0 D6 1|1 A5 .5|1.5 F#5 .5|2 A5 .5|2.5 D6 .5|3 C6 .5|3.5 B5 .5"),
+  C3: mel("0 B5 .5|.5 F#5 .5|1 B5 .5|1.5 D6 .5|2 C#6 .5|2.5 B5 .5|3 A5 .5|3.5 F#5 .5"),
+  C4: mel("0 G5 1|1 E5 .5|1.5 G5 .5|2 B5 1.5|3.5 E6 .5"), C8: mel("0 E6 .5|.5 B5 .5|1 G5 .5|1.5 B5 .5|2 E6 2"),
+};
+
+// lead: the tune's instrument; drive (0-2): how busy the drums and bass are
+const SONGS = [
+  { name: "ムクの ぴょんぴょん", bpm: 100, lead: "bell", drive: 0, sections: [
+    { type: "intro",  bars: 4, chords: ["C", "G", "Am", "F"], chart: INTRO_CHART },
+    { type: "verse",  bars: 8, chords: ["C", "G", "Am", "F"], mel: [E.V1, E.V2, E.V3, E.V4, E.V1, E.V2, E.V3, E.V8] },
+    { type: "chorus", bars: 8, chords: ["F", "G", "C", "Am", "F", "G", "C", "C"], mel: [E.C1, E.C2, E.C3, E.C4, E.C1, E.C2, E.C3, E.C8] },
+    { type: "break",  bars: 4, chords: ["C", "G", "Am", "F"], chart: BREAK_CHART, banner: "ダンスブレイク！" },
+    { type: "chorus", bars: 8, chords: ["F", "G", "C", "Am", "F", "G", "C", "C"], mel: [E.C1, E.C2, E.C3, E.C4, E.C1, E.C2, E.C3, E.C8], banner: "ラストサビ！" },
+    { type: "outro",  bars: 2, chords: ["C", "C"], chart: OUTRO_CHART },
+  ] },
+  { name: "にじいろホップ", bpm: 120, lead: "square", drive: 1, sections: [
+    { type: "intro",  bars: 4,  chords: ["Am", "F", "C", "G"], chart: INTRO_CHART },
+    { type: "verse",  bars: 8,  chords: ["Am", "F", "C", "G"], mel: [N.V1, N.V2, N.V3, N.V4, N.V1, N.V2, N.V3, N.V8] },
+    { type: "pre",    bars: 4,  chords: ["Dm", "Em", "F", "G"], mel: [N.P1, N.P2, N.P3, N.P4] },
+    { type: "chorus", bars: 8,  chords: ["F", "G", "Em", "Am"], mel: [N.C1, N.C2, N.C3, N.C4, N.C1, N.C2, N.C3, N.C8] },
+    { type: "break",  bars: 4,  chords: ["Am", "F", "C", "G"], chart: BREAK_CHART, banner: "ダンスブレイク！" },
+    { type: "verse",  bars: 8,  chords: ["Am", "F", "C", "G"], mel: [N.V1, N.V2, N.V3, N.V4, N.V1, N.V2, N.V3, N.V8] },
+    { type: "pre",    bars: 4,  chords: ["Dm", "Em", "F", "G"], mel: [N.P1, N.P2, N.P3, N.P4] },
+    { type: "chorus", bars: 16, chords: ["F", "G", "Em", "Am"],
+      mel: [N.C1, N.C2, N.C3, N.C4, N.C1, N.C2, N.C3, N.C4, N.C1, N.C2, N.C3, N.C4, N.C1, N.C2, N.C3, N.C8], banner: "ラストサビ！" },
+    { type: "outro",  bars: 2,  chords: ["Am", "Am"], chart: OUTRO_CHART },
+  ] },
+  { name: "ほしぞら ダッシュ", bpm: 136, lead: "saw", drive: 2, sections: [
+    { type: "intro",  bars: 4,  chords: ["Em", "C", "G", "D"], chart: INTRO_CHART },
+    { type: "verse",  bars: 8,  chords: ["Em", "C", "G", "D"], mel: [H.V1, H.V2, H.V3, H.V4, H.V1, H.V2, H.V3, H.V8] },
+    { type: "pre",    bars: 4,  chords: ["Am", "Bm", "C", "D"], mel: [H.P1, H.P2, H.P3, H.P4] },
+    { type: "chorus", bars: 8,  chords: ["C", "D", "Bm", "Em"], mel: [H.C1, H.C2, H.C3, H.C4, H.C1, H.C2, H.C3, H.C8] },
+    { type: "break",  bars: 8,  chords: ["Em", "C", "G", "D"], chart: BREAK_CHART, banner: "ダンスブレイク！" },
+    { type: "pre",    bars: 4,  chords: ["Am", "Bm", "C", "D"], mel: [H.P1, H.P2, H.P3, H.P4] },
+    { type: "chorus", bars: 16, chords: ["C", "D", "Bm", "Em"],
+      mel: [H.C1, H.C2, H.C3, H.C4, H.C1, H.C2, H.C3, H.C4, H.C1, H.C2, H.C3, H.C4, H.C1, H.C2, H.C3, H.C8], banner: "ラストサビ！" },
+    { type: "outro",  bars: 2,  chords: ["Em", "Em"], chart: OUTRO_CHART },
+  ] },
 ];
-const SONG_BEATS = 4 * SECTIONS.reduce((a, s) => a + s.bars, 0);
+for (const song of SONGS) song.beats = 4 * song.sections.reduce((a, s) => a + s.bars, 0);
+let SONG = SONGS[1];
 
 // ---------------------------------------------------------------- audio
 let AC = null, out = null, leadBus = null, noiseBuf = null;
@@ -247,15 +291,48 @@ function pad(t, ms, d, v = 1) {
 }
 const pluck = (t, m, v = 1) => tone(t, "square", hz(m), 0.02, 0.06 * v, { a: 0.003, r: 0.22, lp: 2600 });
 function lead(t, m, d) {
-  tone(t, "square", hz(m - 12), d * 0.9, 0.085, { r: 0.08, lp: 3000, dest: leadBus, vib: 12 });
-  tone(t, "triangle", hz(m), d * 0.9, 0.05, { r: 0.08, dest: leadBus, vib: 12 });
+  if (SONG.lead === "bell") {   // marimba-ish: struck, then dies away
+    tone(t, "triangle", hz(m - 12), 0.01, 0.16, { r: Math.min(0.6, d + 0.2), dest: leadBus });
+    tone(t, "sine", hz(m + 12), 0.01, 0.04, { r: 0.2, dest: leadBus });
+  } else if (SONG.lead === "saw") {   // bright detuned synth
+    for (const det of [-12, 12]) tone(t, "sawtooth", hz(m - 12), d * 0.9, 0.055, { r: 0.1, lp: 3400, dest: leadBus, det, vib: 10 });
+    tone(t, "square", hz(m), d * 0.9, 0.02, { r: 0.08, lp: 4000, dest: leadBus });
+  } else {
+    tone(t, "square", hz(m - 12), d * 0.9, 0.085, { r: 0.08, lp: 3000, dest: leadBus, vib: 12 });
+    tone(t, "triangle", hz(m), d * 0.9, 0.05, { r: 0.08, dest: leadBus, vib: 12 });
+  }
+}
+
+function cheer(t) {   // the crowd roars
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; s.loop = true; f.type = "bandpass"; f.frequency.value = 1100; f.Q.value = 0.6;
+  g.gain.setValueAtTime(0.001, t); g.gain.exponentialRampToValueAtTime(0.22, t + 0.25); g.gain.exponentialRampToValueAtTime(0.001, t + 3);
+  s.connect(f); f.connect(g); g.connect(out); s.start(t); s.stop(t + 3.1);
+}
+// two bars of fanfare for a special dance, starting at audio time T; it hands back to the song with a snare roll
+function specialMusic(T) {
+  const at = x => T + x * BEAT;
+  crash(T); cheer(T);
+  for (let i = 0; i < 8; i++) kick(at(i));
+  for (const x of [1, 3, 5]) clap(at(x));
+  for (let i = 0; i < 24; i++) hat(at(i / 4), i % 2 ? 0.4 : 0.7);
+  pad(T, [60, 64, 67, 72], 4 * BEAT, 1.4); pad(at(4), [60, 65, 69], 2 * BEAT, 1.4); pad(at(6), [62, 67, 71], 2 * BEAT, 1.4);
+  for (const [x, m, d] of [[0, 48, 1.5], [1.5, 48, .5], [2, 60, .5], [2.5, 48, .5], [3, 60, 1], [4, 41, 1], [5, 53, 1],
+    [6, 43, .5], [6.5, 43, .5], [7, 55, .5], [7.5, 55, .5]]) bass(at(x), m, d * BEAT);
+  const up = [60, 64, 67, 72, 76, 79, 84, 88];
+  for (let i = 0; i < 16; i++) pluck(at(i / 4), up[i < 8 ? i : 15 - i], 1.2);
+  for (const x of [4, 4.75, 5.5]) for (const m of [65, 69, 72]) pluck(at(x), m, 1.2);
+  for (const [x, m, d] of [[4, 79, .5], [4.5, 84, .5], [5, 88, .5], [5.5, 91, .5]]) lead(at(x), m, d * BEAT);
+  for (let i = 0; i < 8; i++) snare(at(6 + i / 4), 0.3 + 0.7 * i / 7);
+  riser(at(6), 2 * BEAT);
 }
 
 function buildSong() {
   const ev = [];
   const add = (beat, fn) => ev.push({ t: beat * BEAT, fn });
+  const dv = SONG.drive;
   let bar = 0;
-  for (const sec of SECTIONS) {
+  for (const sec of SONG.sections) {
     for (let b = 0; b < sec.bars; b++, bar++) {
       const B = bar * 4, ch = CH[sec.chords[b % sec.chords.length]], ty = sec.type, lastBar = b === sec.bars - 1;
       const each = (beats, fn) => beats.forEach(x => add(B + x, a => fn(a, x)));
@@ -267,9 +344,12 @@ function buildSong() {
         if (b === 3) each([1, 3], clap);
       } else if (ty === "verse") {
         add(B, a => pad(a, ch.p, 4 * BEAT - 0.05, 0.7));
-        each([0, 2, 2.5], kick); each([1, 3], clap);
+        each([[0, 2], [0, 2, 2.5], [0, 1, 2, 3]][dv], kick); each([1, 3], clap);
         each(eighths, (a, x) => hat(a, x % 1 ? 0.45 : 0.7));
-        for (const [x, o, d] of [[0, 0, 1.25], [1.5, 0, .5], [2, 0, .5], [2.5, 12, .5], [3.5, 0, .5]]) add(B + x, a => bass(a, ch.r + o, d));
+        const line = [[[0, 0, 1], [1, 12, 1], [2, 0, 1], [3, 12, 1]],
+          [[0, 0, 1.25], [1.5, 0, .5], [2, 0, .5], [2.5, 12, .5], [3.5, 0, .5]],
+          eighths.map(x => [x, x % 1 ? 12 : 0, .5])][dv];
+        for (const [x, o, d] of line) add(B + x, a => bass(a, ch.r + o, d));
       } else if (ty === "pre") {
         add(B, a => pad(a, ch.p, 4 * BEAT - 0.05, 0.9));
         each([0, 1, 2, 3], kick); each([0, 1, 2, 3], a => bass(a, ch.r, 1));
@@ -282,8 +362,11 @@ function buildSong() {
         add(B, a => pad(a, ch.p, 4 * BEAT - 0.05));
         each([0, 1, 2, 3], kick); each([1, 3], clap);
         each(eighths, (a, x) => x % 1 ? hat(a, 0.8, true) : hat(a, 0.6));
+        if (dv === 2) each(eighths, a => hat(a + BEAT / 4, 0.35));
         each(eighths, (a, x) => bass(a, ch.r + (x % 1 ? 12 : 0), .5));
-        each(eighths, (a, x) => pluck(a, ch.p[[0, 1, 2, 1][(x * 2) % 4]] + 12, 0.8));
+        const arp = dv === 2 ? [...eighths, ...eighths.map(x => x + .25)] : dv === 1 ? eighths : [0, 1, 2, 3];
+        const per = [1, 2, 4][dv];   // arpeggio steps per beat
+        each(arp, (a, x) => pluck(a, ch.p[[0, 1, 2, 1][Math.round(x * per) % 4]] + 12, 0.8));
       } else if (ty === "break") {
         if (b === 0) add(B, crash);
         const hits = [0, .75, 1.5, 2.5, 3];
@@ -306,14 +389,14 @@ function buildSong() {
 function buildChart(d) {
   const D = DIFFS[d], notes = [];
   let bar = 0;
-  for (const sec of SECTIONS) {
+  for (const sec of SONG.sections) {
     if (sec.mel) {
       const kept = [];
       let last = -99;
       sec.mel.forEach((bm, b) => bm.forEach(n => {
         const beat = (bar + b) * 4 + n.b;
         if (!D.offbeats && n.b % 1) return;
-        if (beat - last >= D.minGap - 1e-6) { kept.push({ beat, m: n.m }); last = beat; }
+        if (beat - last >= (sec.type === "chorus" ? D.chorusGap : D.minGap) - 1e-6) { kept.push({ beat, m: n.m }); last = beat; }
       }));
       const sorted = kept.map(n => n.m).sort((a, b) => a - b), med = sorted[sorted.length >> 1];
       let prevM = null, side = 1, p1 = -1, p2 = -1;
@@ -327,7 +410,8 @@ function buildChart(d) {
         if (d === 2 && sec.type === "chorus" && n.beat % 8 === 0) notes.push({ beat: n.beat, limb: limb ^ 1 });
       }
     } else if (sec.chart) {
-      sec.chart[d].forEach((steps, b) => steps.forEach(([x, limb]) => notes.push({ beat: (bar + b) * 4 + x, limb })));
+      const bars = sec.chart[d];
+      for (let b = 0; b < sec.bars; b++) for (const [x, limb] of bars[b % bars.length]) notes.push({ beat: (bar + b) * 4 + x, limb });
     }
     bar += sec.bars;
   }
@@ -377,6 +461,7 @@ function syncClock(perf) {
 const songTimeAt = perf => perf / 1000 + clockOff - G.t0 - offsetMs / 1000;
 
 function start(d) {
+  SONG = SONGS[d]; BEAT = 60 / SONG.bpm;
   initAudio();
   AC.resume();
   newBus();
@@ -384,7 +469,8 @@ function start(d) {
   navigator.wakeLock?.request("screen").then(l => (G && (G.lock = l))).catch(() => {});
   G = { d, D: DIFFS[d], t0: AC.currentTime + 0.5, events: buildSong(), ei: 0, notes: buildChart(d),
     score: 0, combo: 0, maxCombo: 0, counts: [0, 0, 0, 0], fever: false,
-    hitT: [-9, -9, -9, -9], press: [-9, -9, -9, -9], wave: [1, 1, 1, 1], missT: -9, banner: null };
+    hitT: [-9, -9, -9, -9], press: [-9, -9, -9, -9], wave: [1, 1, 1, 1], missT: -9, banner: null,
+    fancy: [false, false, false, false], style: [0, 0, 0, 0], sp: null, spCount: 0 };
   clockOff = null; particles = []; popups = []; bubble = null;
   mode = "play";
   show(null);
@@ -394,6 +480,7 @@ function scheduler() {
   if (mode !== "play" || !G) return;
   const horizon = AC.currentTime + 0.25;
   while (G.ei < G.events.length && G.t0 + G.events[G.ei].t < horizon) {
+    if (G.sp && !G.sp.shifted && G.events[G.ei].t >= G.sp.B) break;   // the song waits for the special dance
     const e = G.events[G.ei++], at = G.t0 + e.t;
     if (at > AC.currentTime - 0.05) e.fn(Math.max(at, AC.currentTime));
   }
@@ -451,12 +538,38 @@ function judge(n, err, t) {
   G.fever = G.combo >= G.D.fever;
   G.score += JUDGE[k].pts * (G.fever ? 2 : 1);
   G.hitT[n.limb] = t; G.wave[n.limb] = -G.wave[n.limb];
+  G.fancy[n.limb] = G.combo >= 5;   // from a 5 combo, each move is a showier version
+  if (G.fancy[n.limb]) G.style[n.limb]++;
   const [x, y] = L.targets[n.limb];
-  burst(x, y, LIMBS[n.limb].color, k === 0 ? 22 : 12);
+  burst(x, y, LIMBS[n.limb].color, k === 0 ? 22 : 12, G.fancy[n.limb]);
   popups.push({ text: JUDGE[k].text, color: JUDGE[k].color, x: edge(x), y: y - L.R - 10 * L.s, born: performance.now() });
   if (k < 2) navigator.vibrate?.(12);
-  if (G.fever && !wasFever) say("フィーバー タイム！✨");
+  if (G.D.specials.includes(G.combo) && planSpecial()) say("スペシャル ダンスだ！");
+  else if (G.fever && !wasFever) say("フィーバー タイム！✨");
   else if ([10, 25, 50, 75, 100, 150].includes(G.combo)) say(G.combo + "コンボ！ ぴょんぴょん！");
+}
+
+// A special dance starts at the next bar line: the song stops there for two bars of fanfare
+// while the dancer does a routine, then carries on from the same bar.
+function planSpecial() {
+  if (G.sp) return false;
+  const bar = 4 * BEAT, B = Math.ceil((AC.currentTime - G.t0 + 0.35) / bar) * bar;
+  if (B < 8 * BEAT || B > (SONG.beats - 12) * BEAT) return false;
+  G.sp = { B, Dc: 8 * BEAT, shifted: false, kind: (G.d + G.spCount++) % DANCES.length, combo: G.combo, bonus: G.combo * 50 };
+  specialMusic(G.t0 + B);
+  return true;
+}
+function startSpecial() {   // called when the bar line is heard
+  G.t0 += G.sp.Dc; G.sp.shifted = true;
+  for (const n of G.notes) if (n.t < G.sp.B && !n.judged) n.judged = true;   // a note right on the cut is let off
+  G.score += G.sp.bonus;
+  const { cx, cy, s } = L;
+  for (let i = 0; i < 40; i++) {
+    const a = Math.random() * Math.PI * 2, v = (150 + Math.random() * 350) * s;
+    particles.push({ x: cx, y: cy - 40 * s, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1.2, age: 0, g: 0.4,
+      color: RAINBOW[i % 9], r: (5 + Math.random() * 5) * s, star: true });
+  }
+  navigator.vibrate?.([30, 40, 30]);
 }
 function miss(n) {
   n.judged = true;
@@ -468,11 +581,11 @@ function miss(n) {
 }
 const edge = x => Math.min(Math.max(x, 76 * L.s), L.W - 76 * L.s);   // keep words on screen
 function say(text) { bubble = { text, born: performance.now() }; }
-function burst(x, y, color, n) {
-  for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI * 2, v = (120 + Math.random() * 260) * L.s;
-    particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.5 + Math.random() * 0.3,
-      age: 0, color: i % 3 ? color : "#fff", r: (3 + Math.random() * 4) * L.s });
+function burst(x, y, color, n, stars = false) {
+  for (let i = 0; i < n * (stars ? 1.5 : 1); i++) {
+    const a = Math.random() * Math.PI * 2, v = (120 + Math.random() * (stars ? 380 : 260)) * L.s;
+    particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.5 + Math.random() * 0.3, g: 1,
+      age: 0, color: stars && i % 2 ? RAINBOW[i % 9] : i % 3 ? color : "#fff", r: (3 + Math.random() * 4) * L.s, star: stars && i % 3 === 0 });
   }
 }
 
@@ -557,13 +670,13 @@ function circle(x, y, r, fill, stroke, lw) {
 const easeOut = x => 1 - (1 - x) * (1 - x);
 function reach(i, t) {   // how far limb i is stretched towards its circle (0..1)
   if (!G) return 0;
-  const d = t - G.hitT[i];
-  if (d < 0 || d > 0.42) return 0;
-  return d < 0.07 ? easeOut(d / 0.07) : 1 - easeOut((d - 0.07) / 0.35);
+  const d = t - G.hitT[i], [out, hold, back] = G.fancy[i] ? [0.12, 0.1, 0.38] : [0.07, 0, 0.35];
+  if (d < 0 || d > out + hold + back) return 0;
+  return d < out ? easeOut(d / out) : d < out + hold ? 1 : 1 - easeOut((d - out - hold) / back);
 }
 
 // ---------------------------------------------------------------- scene
-function drawBackground(t, beat, fever) {
+function drawBackground(t, beat, fever, sb = null) {
   const { W, H, s } = L;
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, fever ? `hsl(${(t * 60) % 360},55%,22%)` : "#1d0b3d");
@@ -582,6 +695,15 @@ function drawBackground(t, beat, fever) {
     ctx.lineTo(x0 + Math.sin(a + wd) * len, Math.cos(a + wd) * len);
     ctx.fill();
   }
+  if (sb !== null) {   // a turning rainbow sunburst behind the special dance
+    const n = 18, a0 = t * 0.8, R = Math.hypot(W, H);
+    ctx.globalAlpha = 0.16 * Math.min(1, sb * 2, (8 - sb) * 2);
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = RAINBOW[i % 9];
+      ctx.beginPath(); ctx.moveTo(L.cx, L.cy - 40 * s);
+      ctx.arc(L.cx, L.cy - 40 * s, R, a0 + i * 2 * Math.PI / n, a0 + (i + 0.5) * 2 * Math.PI / n); ctx.fill();
+    }
+  }
   ctx.restore();
   // stage floor
   ctx.fillStyle = "#ffffff14";
@@ -598,11 +720,15 @@ function drawBackground(t, beat, fever) {
   }
 }
 
-function drawRabbit(t, beat, combo) {
+function drawRabbit(t, beat, combo, sb = null) {
   const { s, cx, cy } = L;
   const ph = ((beat % 1) + 1) % 1;
-  const hop = Math.sin(Math.PI * ph) * (combo >= 10 ? 16 : 8) * s;
-  const spin = bubble && performance.now() - bubble.born < 600 ? (performance.now() - bubble.born) / 600 * Math.PI * 2 : 0;
+  let hop = Math.sin(Math.PI * ph) * (combo >= 10 ? 16 : 8) * s;
+  let spin = bubble && performance.now() - bubble.born < 600 ? (performance.now() - bubble.born) / 600 * Math.PI * 2 : 0;
+  if (sb !== null) {   // big hops, with a flip every other beat
+    hop = Math.abs(Math.sin(Math.PI * sb)) * 34 * s;
+    spin = sb % 2 > 1 ? smooth(sb % 2 - 1) * Math.PI * 2 : 0;
+  }
   const onMenu = mode === "menu";   // on the title screen it stands beside the dancer, clear of the buttons
   const x = onMenu ? cx + 125 * s : cx, y = (onMenu ? cy + 140 * s : cy + 300 * s) - hop, r = 22 * s;
   ctx.save(); ctx.translate(x, y); ctx.rotate(spin);
@@ -646,27 +772,104 @@ function drawRabbit(t, beat, combo) {
   }
 }
 
+// special dances: a pose for b = beats into the 8-beat dance.
+// Hands are offsets from the body centre, feet from the floor under it, in layout units; lift < 0 is up.
+const POSE = {
+  rest:  [[-74, 28], [74, 28], [-44, 160], [44, 160]],
+  T:     [[-125, -15], [125, -15], [-30, 160], [30, 160]],
+  V:     [[-95, -115], [95, -115], [-44, 160], [44, 160]],
+  X:     [[-110, -105], [110, -105], [-95, 150], [95, 150]],
+  tuck:  [[-50, 10], [50, 10], [-30, 150], [30, 150]],
+  split: [[-105, -110], [105, -110], [-140, 178], [140, 178]],
+  disco: [[-55, 45], [100, -125], [-44, 160], [75, 150]],
+  robA:  [[-85, -60], [85, 30], [-44, 160], [44, 160]],
+  robB:  [[-85, 30], [85, -60], [-44, 160], [44, 160]],
+  robC:  [[-115, -15], [55, -65], [-60, 160], [30, 160]],
+  robD:  [[-55, -65], [115, -15], [-30, 160], [60, 160]],
+};
+const mix = (a, b, k) => a.map((p, i) => [p[0] + (b[i][0] - p[0]) * k, p[1] + (b[i][1] - p[1]) * k]);
+const smooth = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+const bounce = (b, h) => -Math.abs(Math.sin(Math.PI * b)) * h;
+const DANCES = [
+  { name: "くるくる スピン！", pose(b) {
+    if (b < 4) return { p: mix(POSE.rest, POSE.T, smooth(b * 2)), spin: Math.cos(Math.PI * b), lift: bounce(b, 12) };
+    if (b < 6) return { p: mix(POSE.T, POSE.V, smooth(b - 4)), lift: bounce(b, 22) };
+    return { p: mix(POSE.V, POSE.disco, smooth((b - 6) * 3)), tilt: 0.15 };
+  } },
+  { name: "ジャンプ ジャンプ！", pose(b) {
+    if (b < 6) { const k = Math.sin(Math.PI * (b % 1)); return { p: mix(POSE.tuck, POSE.X, k), lift: -k * 60 }; }
+    const k = smooth((b - 6) * 4);
+    return { p: mix(POSE.X, POSE.split, k), lift: 28 * k };
+  } },
+  { name: "なみなみ ウェーブ！", pose(b) {
+    if (b < 6) {
+      const step = Math.sin(Math.PI * b) * 28, w = 2 * Math.PI * b;
+      return { p: [[-118, -20 + 45 * Math.sin(w)], [118, -20 + 45 * Math.sin(w - 1.6)],
+        [-44 + step, 160 - Math.max(0, Math.sin(Math.PI * b)) * 12], [44 + step, 160 - Math.max(0, -Math.sin(Math.PI * b)) * 12]],
+        tilt: 0.12 * Math.sin(w - 0.8), sway: step * 0.6 };
+    }
+    const j = Math.sin(b * 40) * 5;   // jazz hands
+    return { p: mix(POSE.T, POSE.V, smooth((b - 6) * 4)).map((q, i) => i < 2 ? [q[0] + j, q[1]] : q), lift: bounce(b, 15) };
+  } },
+  { name: "ロボット ダンス！", pose(b) {
+    const seq = [POSE.robA, POSE.robB, POSE.robC, POSE.robD];
+    if (b < 6) { const i = Math.floor(b * 2), f = b * 2 - i; return { p: mix(seq[(i + 3) % 4], seq[i % 4], smooth(f * 5)), tilt: i % 2 ? 0.14 : -0.14 }; }
+    return { p: mix(POSE.robD, POSE.V, smooth((b - 6) * 4)), lift: -10 };
+  } },
+];
+function specialBeat(t) {   // beats into the special dance, or null when there isn't one on
+  if (!G || !G.sp || !G.sp.shifted) return null;
+  const b = (t - (G.sp.B - G.sp.Dc)) / BEAT;
+  return b >= 0 && b < 8 ? b : null;
+}
+const lerp2 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+
 function drawDancer(t, beat, fever) {
   const { s, cx, cy } = L;
+  const sb = mode === "menu" ? null : specialBeat(t), sp = sb === null ? null : DANCES[G.sp.kind].pose(sb);
+  const fancy = i => G && !sp && G.fancy[i];
   const ph = ((beat % 1) + 1) % 1, gv = fever ? 1.6 : 1;
-  const bob = 7 * s * (0.5 + 0.5 * Math.cos(2 * Math.PI * ph)) * gv;
-  const sway = Math.sin(Math.PI * beat) * 6 * s * gv;
+  // a fancy kick leans the body away and makes it hop; the third kick style is a jump kick
+  const hop = [2, 3].reduce((a, i) => a + (fancy(i) ? reach(i, t) * (G.style[i] % 3 === 2 ? 45 : 16) : 0), 0) * s;
+  const lean = [-0.13, 0.13, 0.1, -0.1].reduce((a, d, i) => a + (fancy(i) ? reach(i, t) * d : 0), 0);
+  const bob = sp ? (sp.lift || 0) * s : 7 * s * (0.5 + 0.5 * Math.cos(2 * Math.PI * ph)) * gv - hop;
+  const sway = sp ? (sp.sway || 0) * s : Math.sin(Math.PI * beat) * 6 * s * gv;
   const bx = cx + sway, by = cy + bob;
   const wob = G && t - G.missT < 0.5 && t > G.missT ? Math.sin((t - G.missT) * 40) * 0.12 * (1 - (t - G.missT) * 2) : 0;
-  const tilt = Math.sin(Math.PI * beat) * 0.07 * gv + wob;
+  const tilt = sp ? sp.tilt || 0 : Math.sin(Math.PI * beat) * 0.07 * gv + wob + lean * 0.8;
   const pump = Math.sin(Math.PI * beat);
   const joints = [[bx - 42 * s, by - 12 * s], [bx + 42 * s, by - 12 * s], [bx - 22 * s, by + 72 * s], [bx + 22 * s, by + 72 * s]];
-  const idle = [
-    [bx - 74 * s, by + 28 * s - pump * 16 * s * gv], [bx + 74 * s, by + 28 * s + pump * 16 * s * gv],
-    [cx - 44 * s + sway * 0.3, cy + 160 * s - Math.max(0, pump) * 10 * s], [cx + 44 * s + sway * 0.3, cy + 160 * s - Math.max(0, -pump) * 10 * s],
-  ];
+  const idle = sp
+    ? sp.p.map((q, i) => i < 2 ? [bx + q[0] * s, by + q[1] * s] : [bx + q[0] * s, cy + q[1] * s + Math.min(0, bob)])
+    : [
+      [bx - 74 * s, by + 28 * s - pump * 16 * s * gv], [bx + 74 * s, by + 28 * s + pump * 16 * s * gv],
+      [cx - 44 * s + sway * 0.3, cy + 160 * s - Math.max(0, pump) * 10 * s], [cx + 44 * s + sway * 0.3, cy + 160 * s - Math.max(0, -pump) * 10 * s],
+    ];
   const eff = idle.map((p, i) => {
     const e = reach(i, t);
     if (!e) return p;
-    const T = L.targets[i], dx = T[0] - p[0], dy = T[1] - p[1], len = Math.hypot(dx, dy) || 1;
-    const arc = Math.sin(Math.PI * e) * G.wave[i] * 26 * s;
-    return [p[0] + dx * e - dy / len * arc, p[1] + dy * e + dx / len * arc];
+    const T = L.targets[i], dx = T[0] - p[0], dy = T[1] - p[1], len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+    const k = Math.sin(Math.PI * e);
+    if (!fancy(i)) return [p[0] + dx * e + nx * k * G.wave[i] * 26 * s, p[1] + dy * e + ny * k * G.wave[i] * 26 * s];
+    const st = G.style[i] % 3;
+    if (i < 2) {
+      if (st === 0) return [p[0] + dx * e + nx * k * G.wave[i] * 60 * s, p[1] + dy * e + ny * k * G.wave[i] * 60 * s];   // big swoop
+      if (st === 1) {   // loop-the-loop
+        const a = e * Math.PI * 2, r = 32 * s * k;
+        return [p[0] + dx * e + Math.sin(a) * r * (i ? 1 : -1), p[1] + dy * e - (1 - Math.cos(a)) * r];
+      }
+      return [p[0] + dx * e, p[1] + dy * e - k * 75 * s];   // windmill up over the head
+    }
+    if (st === 0) return [p[0] + dx * e, p[1] + dy * e - k * 60 * s];   // high kick
+    if (st === 1) { const K = [p[0] + (i === 2 ? -10 : 10) * s, by + 35 * s]; return e < 0.5 ? lerp2(p, K, e * 2) : lerp2(K, T, (e - 0.5) * 2); }   // knee up, then kick
+    return [p[0] + dx * e, p[1] + dy * e];   // jump kick (the hop does the rest)
   });
+  // the upper body leans about the hips, so arm targets go into its turned frame
+  const pv = [bx, by + 70 * s], cl = Math.cos(-lean), sl = Math.sin(-lean);
+  const local = q => [pv[0] + (q[0] - pv[0]) * cl - (q[1] - pv[1]) * sl, pv[1] + (q[0] - pv[0]) * sl + (q[1] - pv[1]) * cl];
+  const spin = sp && sp.spin !== undefined ? sp.spin : 1;
+  ctx.save();
+  if (spin !== 1) { ctx.translate(bx, 0); ctx.scale(Math.sign(spin || 1) * Math.max(Math.abs(spin), 0.06), 1); ctx.translate(-bx, 0); }
   const skin = "#f4c9a8", ink = "#2a1640";
   // legs and shoes
   for (const i of [2, 3]) {
@@ -679,6 +882,7 @@ function drawDancer(t, beat, fever) {
     ctx.restore();
   }
   // shorts and T-shirt
+  ctx.save(); ctx.translate(pv[0], pv[1]); ctx.rotate(lean); ctx.translate(-pv[0], -pv[1]);
   ctx.fillStyle = "#3c6fd1"; ctx.strokeStyle = ink; ctx.lineWidth = 3 * s;
   ctx.beginPath(); ctx.roundRect(bx - 40 * s, by + 50 * s, 80 * s, 34 * s, 10 * s); ctx.fill(); ctx.stroke();
   ctx.save();
@@ -686,13 +890,13 @@ function drawDancer(t, beat, fever) {
   ctx.fillStyle = "#fff"; ctx.fill(); ctx.stroke(); ctx.clip();
   for (let i = 0; i < 6; i++) { ctx.fillStyle = RAINBOW[i * 1.5 | 0]; ctx.fillRect(bx - 50 * s, by + (2 + i * 4.5) * s, 100 * s, 4.6 * s); }
   ctx.fillStyle = ink; ctx.font = `900 ${Math.round(17 * s)}px system-ui, sans-serif`;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(DANCER, bx, by + 45 * s);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; if (spin > 0) ctx.fillText(DANCER, bx, by + 45 * s);   // not on his back
   ctx.restore();
   // arms, hands, sleeves
   for (const i of [0, 1]) {
-    const sd = i === 0 ? -1 : 1;
-    hose(joints[i], eff[i], 88 * s, 15 * s, skin, sd);
-    circle(eff[i][0], eff[i][1], 11 * s, skin, ink, 3 * s);
+    const sd = i === 0 ? -1 : 1, h = local(eff[i]);
+    hose(joints[i], h, 88 * s, 15 * s, skin, sd);
+    circle(h[0], h[1], 11 * s, skin, ink, 3 * s);
     circle(joints[i][0], joints[i][1] + 2 * s, 15 * s, "#fff", ink, 3 * s);
   }
   // head
@@ -708,16 +912,24 @@ function drawDancer(t, beat, fever) {
       ctx.restore();
     }
   }
-  if (face.complete && face.naturalWidth) {
+  if (spin < 0) {   // facing away mid-spin: the back of his head
+    ctx.fillStyle = "#1c1512"; ctx.beginPath(); ctx.ellipse(0, -4 * s, 58 * s, 70 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffffff22"; ctx.beginPath(); ctx.ellipse(-14 * s, -34 * s, 18 * s, 26 * s, -0.4, 0, Math.PI * 2); ctx.fill();
+  } else if (face.complete && face.naturalWidth) {
     const w = hh * face.naturalWidth / face.naturalHeight;
     ctx.shadowColor = "#0007"; ctx.shadowBlur = 10 * s; ctx.shadowOffsetY = 4 * s;
     ctx.drawImage(face, -w / 2, -hh / 2, w, hh);
   } else circle(0, 0, 60 * s, skin, ink, 3 * s);
   ctx.restore();
+  ctx.restore();   // lean
+  ctx.restore();   // spin
+  return eff;
 }
 
-function drawTargets(t) {
+function drawTargets(t, sb = null) {
   const { R, s } = L;
+  ctx.save();
+  if (sb !== null) ctx.globalAlpha = Math.max(0.2, Math.min(1, (sb - 4) / 2));
   for (let i = 0; i < 4; i++) {
     const [x, y] = L.targets[i], c = LIMBS[i].color;
     // lane from the middle
@@ -730,13 +942,14 @@ function drawTargets(t) {
     drawSym(i, x, y, R * 0.55, 0.3);
     if (hit) circle(x, y, R * (1 + (1 - hit) * 0.8), null, c + Math.round(hit * 255).toString(16).padStart(2, "0"), 4 * s);
   }
+  ctx.restore();
 }
 
 function drawNotes(t) {
   const { R } = L, [ox, oy] = L.origin;
   for (const n of G.notes) {
     if (n.t - t > G.D.approach) break;
-    if (n.judged) continue;
+    if (n.judged || (G.sp && !G.sp.shifted && n.t >= G.sp.B)) continue;
     const p = 1 - (n.t - t) / G.D.approach;
     if (p < 0 || p > 1.35) continue;
     const [tx, ty] = L.targets[n.limb];
@@ -749,7 +962,7 @@ function drawHud(t, beat) {
   const { W, s } = L;
   ctx.save();
   ctx.fillStyle = "#fff3"; ctx.fillRect(0, 0, W, 5);
-  ctx.fillStyle = "#ff5fa2"; ctx.fillRect(0, 0, W * Math.min(1, Math.max(0, beat / SONG_BEATS)), 5);
+  ctx.fillStyle = "#ff5fa2"; ctx.fillRect(0, 0, W * Math.min(1, Math.max(0, beat / SONG.beats)), 5);
   ctx.textBaseline = "top"; ctx.fillStyle = "#fff";
   ctx.font = "bold 14px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.fillText("スコア", 14, 16);
   ctx.font = "bold 24px system-ui, sans-serif"; ctx.fillText(G.score, 14, 32);
@@ -764,18 +977,26 @@ function drawHud(t, beat) {
   ctx.fillStyle = "#fff3"; ctx.beginPath(); ctx.roundRect(W - 54, 12, 42, 42, 12); ctx.fill();
   ctx.fillStyle = "#fff"; ctx.fillRect(W - 41, 23, 6, 20); ctx.fillRect(W - 31, 23, 6, 20);
   // count-in and section banners
-  let big = null;
-  if (beat < 4) big = "じゅんびは いい？";
+  let big = null, small = null;
+  const sb = specialBeat(t);
+  if (sb !== null) {
+    big = sb < 2.5 ? "スペシャル ダンス！" : sb < 6 ? DANCES[G.sp.kind].name : "つぎ いくよ！";
+    small = G.sp.combo + "コンボ ボーナス +" + G.sp.bonus;
+  } else if (beat < 4) { big = "じゅんびは いい？"; small = "♪ " + SONG.name; }
   else if (beat < 8) big = ["3", "2", "1", "おどろう！"][Math.floor(beat) - 4];
   else {
     let b = 0;
-    for (const sec of SECTIONS) { if (sec.banner && beat >= b * 4 && beat < b * 4 + 4) big = sec.banner; b += sec.bars; }
+    for (const sec of SONG.sections) { if (sec.banner && beat >= b * 4 && beat < b * 4 + 4) big = sec.banner; b += sec.bars; }
   }
   if (big) {
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.font = `900 ${Math.round(34 * s)}px system-ui, sans-serif`;
     ctx.lineWidth = 6 * s; ctx.strokeStyle = "#2a1640"; ctx.strokeText(big, W / 2, L.cy - 215 * s + 4 * s);
-    ctx.fillStyle = "#ffd23f"; ctx.fillText(big, W / 2, L.cy - 215 * s + 4 * s);
+    ctx.fillStyle = sb !== null ? RAINBOW[Math.floor(t * 6) % 9] : "#ffd23f"; ctx.fillText(big, W / 2, L.cy - 215 * s + 4 * s);
+    if (small) {
+      ctx.font = `bold ${Math.round(16 * s)}px system-ui, sans-serif`; ctx.lineWidth = 4 * s;
+      ctx.strokeText(small, W / 2, L.cy - 185 * s); ctx.fillStyle = "#fff"; ctx.fillText(small, W / 2, L.cy - 185 * s);
+    }
   }
   ctx.restore();
 }
@@ -790,23 +1011,40 @@ function frame(perf) {
     if (mode === "play") syncClock(perf);
     t = mode === "pause" ? G.pauseT : clockOff === null ? -1 : songTimeAt(perf);
     if (mode === "play" && clockOff !== null) {
+      if (G.sp && !G.sp.shifted && t >= G.sp.B) { startSpecial(); t = songTimeAt(perf); }
+      if (G.sp && G.sp.shifted && t >= G.sp.B) G.sp = null;
       for (const n of G.notes) {
         if (n.t > t) break;
         if (!n.judged && t - n.t > G.D.win[2]) miss(n);
       }
-      if (t > SONG_BEATS * BEAT + 0.5) finish();
+      if (t > SONG.beats * BEAT + 0.5) finish();
     }
   } else t = perf / 1000;
-  const beat = t / BEAT, fever = playing && G && G.fever;
-  drawBackground(perf / 1000, beat, fever);
-  if (playing && G) drawTargets(t);
-  drawRabbit(t, beat, G ? G.combo : 0);
-  drawDancer(t, beat, fever);
+  const beat = t / BEAT, fever = playing && G && G.fever, sb = playing ? specialBeat(t) : null;
+  drawBackground(perf / 1000, beat, fever, sb);
+  if (playing && G) drawTargets(t, sb);
+  drawRabbit(t, beat, G ? G.combo : 0, sb);
+  const eff = drawDancer(t, beat, fever);
   if (playing && G) drawNotes(t);
+  if (mode === "play" && G) {
+    // sparkle trails behind showy moves
+    for (let i = 0; i < 4; i++) if (G.fancy[i] && sb === null && reach(i, t) > 0.15)
+      particles.push({ x: eff[i][0], y: eff[i][1], vx: (Math.random() - 0.5) * 40 * L.s, vy: (Math.random() - 0.5) * 40 * L.s,
+        life: 0.4, age: 0, g: 0, color: Math.random() < 0.5 ? LIMBS[i].color : "#fff", r: (4 + Math.random() * 3) * L.s, star: Math.random() < 0.4 });
+    // confetti during a special dance
+    if (sb !== null) for (let k = 0; k < 3; k++)
+      particles.push({ x: Math.random() * L.W, y: -10, vx: (Math.random() - 0.5) * 60 * L.s, vy: (80 + Math.random() * 80) * L.s,
+        life: 3.5, age: 0, g: 0.1, color: RAINBOW[Math.random() * 9 | 0], r: 5 * L.s, rect: true, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 12 });
+  }
   // particles and judgement words
   for (const p of particles) {
-    p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * L.s * dt;
-    ctx.globalAlpha = Math.max(0, 1 - p.age / p.life); circle(p.x, p.y, p.r, p.color);
+    p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * L.s * dt * p.g;
+    ctx.globalAlpha = Math.max(0, 1 - p.age / p.life);
+    if (p.rect || p.star) {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rect ? (p.rot += p.vr * dt) : p.age * 5); ctx.fillStyle = p.color;
+      if (p.rect) ctx.fillRect(-p.r, -p.r * 0.6, p.r * 2, p.r * 1.2); else { symPath("star", p.r * 1.5); ctx.fill(); }
+      ctx.restore();
+    } else circle(p.x, p.y, p.r, p.color);
   }
   ctx.globalAlpha = 1;
   particles = particles.filter(p => p.age < p.life);
@@ -835,6 +1073,7 @@ $("resume").onclick = resume;
 $("quit").onclick = toMenu;
 $("again").onclick = () => start(G.d);
 $("menu").onclick = toMenu;
+document.querySelectorAll(".diffs .sn").forEach((el, d) => el.textContent = "♪" + SONGS[d].name);
 refreshBest();
 </script>
 </body>
