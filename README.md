@@ -14,19 +14,21 @@ All the text in the game is in Japanese.
 
   | Mode | Song | Style | Taps |
   |---|---|---|---|
-  | かんたん (easy) | ムクの ぴょんぴょん | 100 BPM, bouncy bells, C major, 1:22 | on the beat, about 1 a second |
+  | かんたん (easy) | ムクの ぴょんぴょん | 100 BPM, bouncy bells, C major, 1:22 | a tap every other beat (1.2 s apart), slow arrows, wide timing |
   | ふつう (normal) | にじいろホップ | 120 BPM, K-pop, A minor, 1:56 | about 2 a second, some off-beat |
   | むずかしい (hard) | ほしぞら ダッシュ | 136 BPM, synth-pop, E minor, 1:35 | every note of the tune, plus two-handed taps |
 
   ふつう is the one for a 9-year-old to start on.
 - Moves: up to a 5 combo each hit is a simple reach to the circle.
   From a 5 combo they turn showy, cycling through versions per limb (big swoop, loop-the-loop, windmill; high kick, knee-up kick, jump kick), with the body leaning into them and a sparkle trail.
-- Special dances: at big combos (かんたん 15/35/60, ふつう 30/70/120/170, むずかしい 40/100/160/230/300) the song stops at the next bar line.
+- Special dances: at big combos (かんたん 10/25/40, ふつう 30/70/120/170, むずかしい 40/100/160/230/300) the song stops at the next bar line.
   Two bars of fanfare play while he does a routine (spin, star jumps, wave or robot, in turn) with confetti, ムク flipping beside him, and a combo bonus.
   The song then carries on from the same bar, with the next notes already on their way in during the routine's last beats.
+- ぼうし モード (cap mode) on the title screen puts his mustard newsboy cap on him and a little one on ムク, or takes them off.
+  He dances in a green T-shirt and lavender shorts, like in a photo of him.
 - タイミング ちょうせい (timing fix) on the title screen shifts the timing in 10 ms steps, for Bluetooth headphones or a laggy phone.
   Raise it if he hits パーフェクト only by tapping late.
-- Best scores and the timing fix are kept on the phone.
+- Best scores, ぼうし モード and the timing fix are kept on the phone.
 
 ## Files
 

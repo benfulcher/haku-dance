@@ -35,10 +35,14 @@
   button:active { transform: translateY(3px); box-shadow: 0 1px 0 #0006; }
   .diffs button { flex: 1; font-size: clamp(14px, 4.4vw, 19px); white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .diffs button small { font-size: 12px; opacity: .9; }
-  .diffs button small.sn { font-size: 11px; opacity: 1; }
+  .diffs button { min-width: 0; }
+  .diffs button small.sn { font-size: 11px; opacity: 1; white-space: normal; word-break: keep-all; line-height: 1.25; }
   .d0 { background: #3fbf6a; } .d1 { background: #ff5fa2; } .d2 { background: #7a5cff; }
-  .timing { font-size: 13px; background: #0008; border-radius: 12px; padding: 4px 10px; display: flex; align-items: center; gap: 8px; }
-  .timing button { padding: 4px 12px; border-radius: 10px; background: #fff3; font-size: 16px; }
+  .timing { line-height: 1.2; white-space: nowrap; font-size: clamp(11px, 3.3vw, 13px); background: #0008; border-radius: 12px; padding: 4px 10px; display: flex; align-items: center; gap: 8px; }
+  .timing button { padding: 4px clamp(8px, 2.5vw, 12px); border-radius: 10px; background: #fff3; font-size: 16px; }
+  .opts { display: flex; justify-content: center; align-items: stretch; gap: 6px; max-width: 100%; }
+  #hat { font-size: 11px; line-height: 1.2; padding: 3px 8px; border-radius: 12px; background: #fff3; white-space: nowrap; }
+  #hat.on { background: #c2903a; }
   .card { margin: auto; background: #1d0b3ddd; border: 3px solid #fff5; border-radius: 24px; padding: 18px 20px;
     width: 100%; max-width: 360px; box-sizing: border-box; text-align: center; }
   .grade { font-size: 84px; line-height: 1; font-weight: 900; }
@@ -67,7 +71,10 @@
       <button class="d1" data-d="1">ふつう<small class="sn"></small><small id="best1"></small></button>
       <button class="d2" data-d="2">むずかしい<small class="sn"></small><small id="best2"></small></button>
     </div>
-    <div class="timing">タイミング ちょうせい <button id="tMinus">−</button><span id="tVal">0 ms</span><button id="tPlus">+</button></div>
+    <div class="opts">
+      <button id="hat">🧢 ぼうし モード</button>
+      <div class="timing"><span>タイミング<br>ちょうせい</span> <button id="tMinus">−</button><span id="tVal">0 ms</span><button id="tPlus">+</button></div>
+    </div>
   </div>
 </div>
 
@@ -105,7 +112,7 @@ const RABBIT = "ムク";         // the pet rabbit's name, used in its speech bu
 let BEAT = 0.5;                 // seconds per beat of the current song
 const DIFFS = [
   // minGap: fewest beats between taps (chorusGap in the chorus); specials: the combos that set off a special dance
-  { name: "Easy",   approach: 2.2, win: [0.075, 0.13, 0.2],  fever: 10, minGap: 2,   chorusGap: 1,   offbeats: false, specials: [15, 35, 60] },
+  { name: "Easy",   approach: 2.6, win: [0.1, 0.17, 0.26],   fever: 8,  minGap: 2,   chorusGap: 2,   offbeats: false, specials: [10, 25, 40] },
   { name: "Normal", approach: 1.7, win: [0.06, 0.11, 0.17],  fever: 20, minGap: 1,   chorusGap: 1,   offbeats: true,  specials: [30, 70, 120, 170] },
   { name: "Hard",   approach: 1.3, win: [0.05, 0.095, 0.15], fever: 30, minGap: 0.5, chorusGap: 0.5, offbeats: true,  specials: [40, 100, 160, 230, 300] },
 ];
@@ -425,6 +432,7 @@ const store = {
   set(k, v) { try { localStorage.setItem("hakudance-" + k, JSON.stringify(v)); } catch {} },
 };
 let offsetMs = store.get("offset", 0);
+let hatOn = store.get("hat", true);   // ぼうし モード: his cap on or off
 
 // ---------------------------------------------------------------- game state
 const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
@@ -753,6 +761,7 @@ function drawRabbit(t, beat, combo, sb = null) {
   circle(-r * 0.25, -r * 0.66, r * 0.04, "#fff"); circle(r * 0.31, -r * 0.66, r * 0.04, "#fff");
   circle(0, -r * 0.42, r * 0.09, "#ff7fae");
   circle(-r * 0.5, -r * 0.35, r * 0.13, "#ffb3cf88"); circle(r * 0.5, -r * 0.35, r * 0.13, "#ffb3cf88");
+  if (hatOn) { const k = 0.25; ctx.translate(0, -r * 0.75); ctx.scale(k, k); drawCap(s, true, "#2a1640", 0.85 / k); }   // a little cap to match his
   ctx.restore();
   // name tag, standing still on the floor below the hops (in game only: on the title screen the buttons cover it)
   ctx.font = `bold ${Math.round(13 * s)}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -925,7 +934,7 @@ function drawDancer(t, beat, fever) {
     ctx.shadowColor = "#0007"; ctx.shadowBlur = 10 * s; ctx.shadowOffsetY = 4 * s;
     ctx.drawImage(face, -w / 2, -hh / 2, w, hh);
   } else circle(0, 0, 60 * s, skin, ink, 3 * s);
-  drawCap(s, spin > 0, ink);
+  if (hatOn) drawCap(s, spin > 0, ink);
   ctx.restore();
   ctx.restore();   // lean
   ctx.restore();   // spin
@@ -933,9 +942,9 @@ function drawDancer(t, beat, fever) {
 }
 
 // his mustard newsboy cap with a braided band, worn a little to one side
-function drawCap(s, front, ink) {
+function drawCap(s, front, ink, line = 1) {
   ctx.save(); ctx.translate(-4 * s, -30 * s); ctx.rotate(-0.12);
-  ctx.shadowColor = "#0000"; ctx.strokeStyle = ink; ctx.lineWidth = 3 * s;
+  ctx.shadowColor = "#0000"; ctx.strokeStyle = ink; ctx.lineWidth = 3 * s * line;
   if (front) {   // peak over the forehead
     ctx.fillStyle = "#9a6c22"; ctx.beginPath(); ctx.ellipse(8 * s, 8 * s, 36 * s, 8 * s, 0, 0, Math.PI); ctx.fill(); ctx.stroke();
   }
@@ -944,12 +953,12 @@ function drawCap(s, front, ink) {
   ctx.bezierCurveTo(-74 * s, -30 * s, -30 * s, -52 * s, 10 * s, -48 * s);
   ctx.bezierCurveTo(52 * s, -44 * s, 76 * s, -22 * s, 60 * s, 6 * s);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = "#9a6c22"; ctx.lineWidth = 2 * s;   // panel seams
+  ctx.strokeStyle = "#9a6c22"; ctx.lineWidth = 2 * s * line;   // panel seams
   for (const x of [-22, 22]) { ctx.beginPath(); ctx.moveTo(x * s, 0); ctx.quadraticCurveTo(x * 0.6 * s, -30 * s, 6 * s, -46 * s); ctx.stroke(); }
   ctx.fillStyle = "#ffffff30"; ctx.beginPath(); ctx.ellipse(-24 * s, -26 * s, 16 * s, 8 * s, -0.5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#6b4518"; ctx.strokeStyle = ink; ctx.lineWidth = 3 * s;   // band
+  ctx.fillStyle = "#6b4518"; ctx.strokeStyle = ink; ctx.lineWidth = 3 * s * line;   // band
   ctx.beginPath(); ctx.roundRect(-60 * s, -4 * s, 120 * s, 12 * s, 5 * s); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = "#f0c95a"; ctx.lineWidth = 2.2 * s;   // gold braid
+  ctx.strokeStyle = "#f0c95a"; ctx.lineWidth = 2.2 * s * Math.min(line, 2);   // gold braid
   ctx.beginPath(); for (let x = -54; x <= 54; x += 6) ctx.lineTo(x * s, (x / 6 % 2 ? -0.5 : 4.5) * s); ctx.stroke();
   ctx.restore();
 }
@@ -1093,10 +1102,12 @@ requestAnimationFrame(frame);
 function refreshBest() {
   for (let d = 0; d < 3; d++) { const b = store.get("best" + d, 0); $("best" + d).textContent = b ? "ベスト " + b : "★".repeat(d + 1); }
   $("tVal").textContent = (offsetMs > 0 ? "+" : "") + offsetMs + " ms";
+  $("hat").innerHTML = "🧢 ぼうし モード<br>" + (hatOn ? "オン" : "オフ"); $("hat").classList.toggle("on", hatOn);
 }
 document.querySelectorAll(".diffs button").forEach(b => b.addEventListener("click", () => start(+b.dataset.d)));
 $("tMinus").onclick = () => { offsetMs -= 10; store.set("offset", offsetMs); refreshBest(); };
 $("tPlus").onclick = () => { offsetMs += 10; store.set("offset", offsetMs); refreshBest(); };
+$("hat").onclick = () => { hatOn = !hatOn; store.set("hat", hatOn); refreshBest(); };
 $("resume").onclick = resume;
 $("quit").onclick = toMenu;
 $("again").onclick = () => start(G.d);
